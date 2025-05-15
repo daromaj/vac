@@ -10,6 +10,8 @@
 - **Acceptance Criteria:**
     - Project compiles successfully.
     - Basic app icon and name are set.
+    - Run all unit tests (if any exist at this stage) to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
 - **Test Scenarios (Unit Tests):**
     - N/A (Project setup verification)
 
@@ -20,6 +22,8 @@
     - UI contains input fields for user's name and greeting text.
     - Values entered are persisted (e.g., using SharedPreferences) for MVP.
     - A default greeting is pre-filled if user hasn't set one.
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
 - **Test Scenarios (Unit Tests):**
     - `test_saveAndLoadUserName()`: Verify name is saved and loaded correctly.
     - `test_saveAndLoadGreetingText()`: Verify custom greeting is saved/loaded.
@@ -32,6 +36,8 @@
     - App requests necessary permissions when Setup screen is first launched or via a dedicated button.
     - User is informed why permissions are needed.
     - Permission status is reflected on the Setup screen (e.g., features disabled if not granted).
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
 - **Test Scenarios (Unit Tests):**
     - `test_checkPermissionsGranted()`: Mock permission status to granted.
     - `test_checkPermissionsDenied()`: Mock permission status to denied.
@@ -45,6 +51,8 @@
     - If model is missing, a message is shown on the Setup screen.
     - A button/link attempts to navigate the user to `Settings.ACTION_VOICE_INPUT_SETTINGS`.
     - STT-dependent features are visually indicated as disabled if model is unavailable.
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
 - **Test Scenarios (Unit Tests):**
     - `test_languagePackAvailable()`: Mock `SpeechRecognizer.isRecognitionAvailable()` to return true for `pl-PL`.
     - `test_languagePackMissing()`: Mock `SpeechRecognizer.isRecognitionAvailable()` to return false.
@@ -71,6 +79,8 @@
     - App can be selected as the default Call Screening application.
     - `CallScreeningServiceImpl.onScreenCall()` is invoked for incoming calls chosen by the user to be screened.
     - A foreground service is started by `CallScreeningServiceImpl` to manage the active call session and its notification.
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
 - **Test Scenarios (Unit Tests):**
     - (Primarily integration/manual testing for service binding and foreground service lifecycle).
 
@@ -80,6 +90,8 @@
 - **Acceptance Criteria:**
     - Incoming calls correctly trigger the `CallScreeningService`.
     - The app takes control to manage the call audio for the assistant's interaction.
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
 - **Test Scenarios (Unit Tests):**
     - (Difficult to unit test directly; relies on system integration. Focus on components called by the service).
 
@@ -90,6 +102,8 @@
     - Greeting plays clearly when the assistant answers.
     - Greeting dynamically includes the user's name if provided.
     - Greeting includes "This call is being recorded."
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
 - **Test Scenarios (Unit Tests):**
     - `test_greetingPlaysWithUserName()`: Verify TTS output string contains the name.
     - `test_greetingIncludesRecordingNotice()`: Verify TTS output string includes the notice.
@@ -115,6 +129,8 @@
     - `SpeechRecognitionHandler` correctly initializes `SpeechRecognizer`.
     - `SpeechRecognizer` starts listening after the assistant's greeting, as orchestrated by `CallSessionManager`.
     - `SpeechRecognizer` is configured for `pl-PL`.
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
 - **Test Scenarios (Unit Tests):**
     - `test_speechRecognizerStartsListening()`: Verify `SpeechRecognitionHandler` invokes `startListening()` on `SpeechRecognizer`.
     - `test_speechRecognizerUsesPolishLocale()`: Verify the Intent passed to `startListening()` has `EXTRA_LANGUAGE` set to "pl-PL".
@@ -127,6 +143,8 @@
     - `SpeechRecognitionHandler` gracefully handles `onError()` and informs `CallSessionManager`.
     - `CallSessionManager` correctly implements the silence timeout post `onEndOfSpeech()`.
     - When user takes over, `SpeechRecognitionHandler.stopListening()` is called, halting new audio intake. Buffered audio processing (if any) can complete as per design.
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
 - **Test Scenarios (Unit Tests):**
     - `test_onResultsUpdatesTranscriptionViaListener()`.
     - `test_onErrorNotifiesCallSessionManager()`.
@@ -141,6 +159,8 @@
     - Transcribed speech snippets from `SpeechRecognitionHandler` (via `CallSessionManager`) update this notification in near real-time.
     - Notification includes a "Take Over Call" button.
     - When "Take Over Call" is pressed, the notification UI updates (e.g., button changes/disappears, text indicates user control).
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
 - **Test Scenarios (Unit Tests):**
     - `test_notificationIsShownOnCallStart()`: Verify `NotificationHandler` methods are called.
     - `test_notificationUpdatesWithTranscription()`.
@@ -156,7 +176,9 @@
     - `MessageRecorderHandler` *continues* recording.
     - `CallSessionManager` state changes to prevent new assistant responses.
     - User can speak and hear on the call normally via standard telecom audio paths.
-- **Test Scenarios (Unit Tests):
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
+- **Test Scenarios (Unit Tests):**
     - `test_userTakeOverStopsAssistantTTS()`.
     - `test_userTakeOverStopsNewSTTListening()`.
     - `test_userTakeOverKeepsRecordingActive()`.
@@ -169,6 +191,8 @@
 - **Description:** After STT (caller finishes speaking or timeout), play a predefined follow-up message using TTS/MediaPlayer (e.g., "Thank you. [User's Name] is not available right now. Would you like to leave a message?").
 - **Acceptance Criteria:**
     - Follow-up message plays clearly after STT phase.
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
 - **Test Scenarios (Unit Tests):**
     - `test_followUpMessagePlays()`: Verify TTS/MediaPlayer is invoked for the follow-up.
 
@@ -180,6 +204,8 @@
     - Recording stops automatically after 60 seconds or when the call naturally ends (even if user has taken over).
     - Audio is saved to a file in app-private storage.
     - `MessageRecorderHandler.stopRecording()` is correctly called by `CallSessionManager.stopScreening()` when the call finally terminates.
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
 - **Test Scenarios (Unit Tests):**
     - `test_mediaRecorderStarts()`: Verify `MediaRecorder.start()` is called.
     - `test_mediaRecorderStopsAfterTimeout()`: Simulate 60s passing, verify `stop()` is called.
@@ -193,6 +219,8 @@
 - **Acceptance Criteria:**
     - User can see a list of recorded messages (e.g., by timestamp/filename).
     - User can tap a message to play it back using `MediaPlayer`.
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
 - **Test Scenarios (Unit Tests):**
     - `test_loadMessageList()`: Verify logic that lists saved audio files.
     - `test_playMessageStartsMediaPlayer()`: Verify `MediaPlayer` is used for playback.
@@ -218,6 +246,8 @@
 - **Acceptance Criteria:**
     - App correctly requests and abandons audio focus for each audio operation.
     - No audible conflicts or unexpected stopping of audio streams.
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
 - **Test Scenarios (Unit Tests):**
     - `test_requestsAudioPlaybackFocus()`: Mock `AudioManager` and verify `requestAudioFocus()` call.
     - `test_abandonsAudioPlaybackFocus()`: Mock `AudioManager` and verify `abandonAudioFocus()` call.
@@ -228,6 +258,8 @@
 - **Acceptance Criteria:**
     - `release()`, `destroy()`, `stopSelf()` etc., are called appropriately in all lifecycle methods and relevant call flow terminations (including post user take-over call end).
     - No resource leaks are evident during testing.
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
 - **Test Scenarios (Unit Tests):**
     - `test_componentsReleasedOnDestroy()`: For Activities/Services, verify release methods are called in `onDestroy()`.
     - `test_resourcesReleasedPostTakeOverOnCallEnd()`.
@@ -238,6 +270,8 @@
 - **Acceptance Criteria:**
     - User sees Toasts for defined critical errors.
     - Key app events and errors are logged via `Log.d`/`Log.e`.
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
 - **Test Scenarios (Unit Tests):**
     - `test_errorToastIsShown()`: Simulate error condition, verify Toast display logic (if possible in unit test, otherwise manual).
 
@@ -249,6 +283,8 @@
 - **Acceptance Criteria:**
     - All MVP features function cohesively on the target device.
     - App is stable during typical use flows.
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit any final code tweaks/fixes with a descriptive message.
 
 ## Phase 10: QA - Final MVP Acceptance
 
