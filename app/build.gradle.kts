@@ -53,8 +53,8 @@ dependencies {
     
     testImplementation(libs.junit)
     testImplementation(libs.mockito.core)
-    testImplementation(libs.mockito.inline)
     testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
     
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
