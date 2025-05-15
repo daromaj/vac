@@ -5,7 +5,7 @@
 ## Phase 1: Initial Setup & Core UI
 
 ### Task 1.1: Project Foundation
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** Create a new Android Studio project. Configure `build.gradle` with necessary dependencies (e.g., Kotlin standard library, basic AndroidX libraries). Set up basic project structure (directories for services, activities, utils).
 - **Acceptance Criteria:**
     - Project compiles successfully.

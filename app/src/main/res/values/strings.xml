@@ -1,3 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">VAC</string>
+    
+    <!-- Setup Screen -->
+    <string name="setup_title">Virtual Assistant Setup</string>
+    <string name="name_input_hint">Your Name</string>
+    <string name="greeting_input_hint">Custom Greeting (optional)</string>
+    <string name="default_greeting">Hi, you\'ve reached %1$s\'s phone. This is their virtual assistant. This call is being recorded. How can I help you?</string>
+    <string name="save_button">Save</string>
+    
+    <!-- Permissions -->
+    <string name="permission_record_audio_title">Audio Recording</string>
+    <string name="permission_record_audio_rationale">This permission is needed to record calls and recognize speech from callers.</string>
+    <string name="permission_phone_state_title">Phone State</string>
+    <string name="permission_phone_state_rationale">This permission is needed to detect incoming calls and manage the call state.</string>
+    <string name="request_permissions_button">Request Permissions</string>
+    
+    <!-- Language Pack -->
+    <string name="polish_language_pack_missing">The Polish language pack is required for speech recognition but isn\'t installed.</string>
+    <string name="open_voice_settings_button">Open Voice Settings</string>
+    
+    <!-- Settings saved confirmation -->
+    <string name="settings_saved">Settings saved successfully!</string>
+    
+    <!-- Messages Activity -->
+    <string name="title_recorded_messages">Recorded Messages</string>
+    <string name="no_messages">No messages recorded yet</string>
+    <string name="btn_play">Play</string>
+    <string name="btn_pause">Pause</string>
+    <string name="btn_delete">Delete</string>
+    <string name="message_deleted">Message deleted</string>
+    <string name="error_playing_message">Error playing message</string>
 </resources>
