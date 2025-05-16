@@ -49,7 +49,9 @@ public class CallSessionManagerTest {
     @Mock private MessageRecorderHandler mockMessageRecorderHandler;
 
     private CallSessionManager callSessionManager;
-    private String defaultGreetingFormatString = "Witaj, dodzwoniłeś się do %1$s. Jestem jego wirtualnym asystentem. Uprzedzam, że rozmowa jest nagrywana. Powiedz proszę w jakiej sprawie dzwonisz a ja postaram Ci się pomóc."; // Updated to Polish
+    private String defaultGreetingFormatString = "Witaj, dodzwoniłeś się do %1$s. Jestem jego wirtualnym asystentem. Uprzedzam, że rozmowa jest nagrywana. Powiedz proszę w jakiej sprawie dzwonisz a ja postaram Ci się pomóc.";
+    private static final String POLISH_RECORDING_NOTICE = " Ta rozmowa jest nagrywana.";
+    private static final String POLISH_RECORDING_KEYPHRASE = "rozmowa jest nagrywana";
 
     @Before
     public void setUp() {
@@ -109,9 +111,8 @@ public class CallSessionManagerTest {
     @Test
     public void test_callScreeningUsesTTS_whenGeneratedFileDisabled() {
         String testUserName = "Darek";
-        String testBaseGreeting = "Hi there!"; // Does not contain recording notice
-        String recordingNotice = " This call is being recorded.";
-        String expectedTTSGreeting = testBaseGreeting + recordingNotice;
+        String testBaseGreeting = "Hi there!"; // Custom greeting, does not contain Polish notice
+        String expectedTTSGreeting = testBaseGreeting + POLISH_RECORDING_NOTICE;
 
         when(mockPreferencesManager.shouldUseCustomGreetingFile()).thenReturn(false);
         when(mockPreferencesManager.getUserName()).thenReturn(testUserName);
@@ -127,8 +128,7 @@ public class CallSessionManagerTest {
     @Test
     public void test_callScreeningUsesTTS_whenGeneratedFileDisabled_defaultGreetingUsed() {
         String testUserName = "Darek";
-        String recordingNotice = " This call is being recorded.";
-        String expectedTTSGreeting = String.format(defaultGreetingFormatString, testUserName) + recordingNotice;
+        String expectedTTSGreeting = String.format(defaultGreetingFormatString, testUserName);
 
         when(mockPreferencesManager.shouldUseCustomGreetingFile()).thenReturn(false);
         when(mockPreferencesManager.getUserName()).thenReturn(testUserName);
@@ -145,16 +145,13 @@ public class CallSessionManagerTest {
     @Test
     public void test_callScreeningUsesTTS_whenGeneratedFileEnabledButFileMissing() {
         String fakeFilePath = new File(RuntimeEnvironment.getApplication().getFilesDir(), "missing_greeting.wav").getAbsolutePath();
-        // Ensure file does NOT exist
         File missingFile = new File(fakeFilePath);
         if (missingFile.exists()) {
             missingFile.delete();
         }
 
         String testUserName = "Tester";
-        String recordingNotice = " This call is being recorded.";
-        String expectedTTSGreeting = String.format(defaultGreetingFormatString, testUserName) + recordingNotice;
-
+        String expectedTTSGreeting = String.format(defaultGreetingFormatString, testUserName);
 
         when(mockPreferencesManager.shouldUseCustomGreetingFile()).thenReturn(true);
         when(mockPreferencesManager.getCustomGreetingFilePath()).thenReturn(fakeFilePath);
@@ -171,8 +168,7 @@ public class CallSessionManagerTest {
      @Test
     public void test_callScreeningUsesTTS_whenGeneratedFileEnabledButFilePathNull() {
         String testUserName = "PathUser";
-        String recordingNotice = " This call is being recorded.";
-        String expectedTTSGreeting = String.format(defaultGreetingFormatString, testUserName) + recordingNotice;
+        String expectedTTSGreeting = String.format(defaultGreetingFormatString, testUserName);
 
         when(mockPreferencesManager.shouldUseCustomGreetingFile()).thenReturn(true);
         when(mockPreferencesManager.getCustomGreetingFilePath()).thenReturn(null); // Null path

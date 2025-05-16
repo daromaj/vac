@@ -79,6 +79,8 @@ public class SetupActivityTest {
     private String defaultGreetingFormat;
     private ShadowApplication shadowApplication;
     private AudioHandler mockAudioHandler;
+    private static final String POLISH_RECORDING_NOTICE = " Ta rozmowa jest nagrywana.";
+    private static final String POLISH_RECORDING_KEYPHRASE = "rozmowa jest nagrywana";
 
     // --- Custom Shadow for SpeechRecognizer ---
     @org.robolectric.annotation.Implements(SpeechRecognizer.class)
@@ -440,8 +442,9 @@ public class SetupActivityTest {
     @Test
     public void test_generateGreetingFile_success() {
         final String testName = "Darek";
-        final String testBaseGreeting = "Hello from Darek";
-        final String expectedSynthesizedText = testBaseGreeting + " This call is being recorded.";
+        final String testBaseGreeting = "Hello from Darek"; // Custom greeting, does not contain Polish notice
+        // Expected synthesized text should now have the Polish notice appended
+        final String expectedSynthesizedText = testBaseGreeting + POLISH_RECORDING_NOTICE;
         final String expectedFileName = "custom_greeting_generated.wav";
         final String fakeFilePath = "/data/user/0/com.example.vac/files/" + expectedFileName;
 
@@ -480,8 +483,9 @@ public class SetupActivityTest {
     @Test
     public void test_generateGreetingFile_ttsFailure() {
         final String testName = "DarekFail";
-        final String testBaseGreeting = "Test greeting for failure";
-        final String expectedSynthesizedText = testBaseGreeting + " This call is being recorded.";
+        final String testBaseGreeting = "Test greeting for failure"; // Custom greeting, does not contain Polish notice
+        // Expected synthesized text should now have the Polish notice appended
+        final String expectedSynthesizedText = testBaseGreeting + POLISH_RECORDING_NOTICE;
         final String expectedFileName = "custom_greeting_generated.wav";
 
         try (ActivityScenario<SetupActivity> scenario = ActivityScenario.launch(SetupActivity.class)) {
@@ -511,7 +515,7 @@ public class SetupActivityTest {
     }
 
     @Test
-    public void test_generateGreetingFile_emptyGreetingText_showsError() {
+    public void test_defaultGreetingGenerated_whenBaseGreetingIsEmpty() {
          try (ActivityScenario<SetupActivity> scenario = ActivityScenario.launch(SetupActivity.class)) {
             scenario.onActivity(activity -> {
                 activity.audioHandler = mockAudioHandler;
@@ -523,18 +527,16 @@ public class SetupActivityTest {
 
                 String testUserName = "TestUser";
                 nameInput.setText(testUserName);
-                greetingInput.setText("   "); // Empty after trim
+                greetingInput.setText("   "); // Empty after trim, so default greeting should be used
 
                 generateButton.performClick();
 
-                // Verify synthesis IS called
                 ArgumentCaptor<String> textCaptor = ArgumentCaptor.forClass(String.class);
                 ArgumentCaptor<String> fileCaptor = ArgumentCaptor.forClass(String.class);
                 verify(mockAudioHandler).synthesizeGreetingToFile(textCaptor.capture(), fileCaptor.capture(), any(AudioHandler.SynthesisCallback.class));
 
-                // Construct expected default greeting text
-                String recordingNoticeTrimmed = " This call is being recorded.".trim();
-                String expectedSynthesizedText = String.format(Locale.US, "Hello, you have reached %s.%s", testUserName, recordingNoticeTrimmed);
+                // Expected synthesized text is the Polish default greeting, formatted
+                String expectedSynthesizedText = String.format(activity.getString(R.string.default_greeting), testUserName);
                 String expectedFileName = "custom_greeting_generated.wav";
 
                 assertEquals(expectedSynthesizedText, textCaptor.getValue());

@@ -9,6 +9,8 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -71,6 +73,9 @@ public class SetupActivity extends AppCompatActivity {
     // ActivityResultLauncher for RoleManager request
     private ActivityResultLauncher<Intent> roleActivityResultLauncher;
 
+    private static final String POLISH_RECORDING_NOTICE = " Ta rozmowa jest nagrywana.";
+    private static final String POLISH_RECORDING_KEYPHRASE = "rozmowa jest nagrywana";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -127,6 +132,20 @@ public class SetupActivity extends AppCompatActivity {
         setDefaultScreenerButton.setOnClickListener(v -> openDefaultCallScreenerSettings());
         generateGreetingFileButton.setOnClickListener(v -> generateGreetingFile());
         playGeneratedGreetingButton.setOnClickListener(v -> playGeneratedGreeting());
+
+        // Add TextWatcher for live update of default greeting
+        nameInput.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) { /* Do nothing */ }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) { /* Do nothing */ }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                updateDefaultGreetingPreview();
+            }
+        });
 
         // Initialize ActivityResultLauncher for RoleManager
         // This launcher will handle the result of the role request if we decide to request it directly.
@@ -198,20 +217,28 @@ public class SetupActivity extends AppCompatActivity {
         String savedGreeting = preferencesManager.getGreetingText();
         boolean shouldUseCustomFile = preferencesManager.shouldUseCustomGreetingFile();
 
-        if (!savedName.isEmpty()) {
+        if (savedName != null && !savedName.isEmpty()) { // Check for null before isEmpty
             nameInput.setText(savedName);
         }
 
-        if (savedGreeting != null && !savedGreeting.isEmpty()) {
-            greetingInput.setText(savedGreeting);
-        } else {
-            // No custom greeting saved, so pre-fill with the default greeting.
-            // Format with savedName (which could be empty).
-            String defaultGreetingFormat = getString(R.string.default_greeting);
-            greetingInput.setText(String.format(defaultGreetingFormat, savedName != null ? savedName : ""));
-        }
+        // Always update greeting preview based on current name and saved custom greeting
+        updateDefaultGreetingPreview(); 
 
         useCustomGreetingFileSwitch.setChecked(shouldUseCustomFile);
+    }
+
+    private void updateDefaultGreetingPreview() {
+        String currentName = nameInput.getText() != null ? nameInput.getText().toString().trim() : "";
+        String savedCustomGreeting = preferencesManager.getGreetingText(); // Get the *saved* custom greeting
+
+        if (savedCustomGreeting == null || savedCustomGreeting.isEmpty()) {
+            // No custom greeting is saved, so the input field should reflect the default greeting with the current name.
+            String defaultGreetingFormat = getString(R.string.default_greeting);
+            greetingInput.setText(String.format(defaultGreetingFormat, currentName));
+        } else {
+            // A custom greeting IS saved. Display that one, and don't change it live.
+            greetingInput.setText(savedCustomGreeting);
+        }
     }
 
     private void saveUserSettings() {
@@ -370,22 +397,20 @@ public class SetupActivity extends AppCompatActivity {
     private void generateGreetingFile() {
         String userName = nameInput.getText() != null ? nameInput.getText().toString().trim() : "";
         String greetingBase = greetingInput.getText() != null ? greetingInput.getText().toString().trim() : "";
-        String recordingNotice = " This call is being recorded."; // Leading space is important
         String greetingForFile;
 
-        if (!greetingBase.isEmpty()) {
-            // If user provided base greeting, append recording notice if not already there.
-            // Simple check; could be more robust (e.g., case-insensitive, check for variations).
-            if (!greetingBase.toLowerCase(Locale.ROOT).contains("call is being recorded")) {
-                greetingForFile = greetingBase + recordingNotice;
+        if (greetingBase != null && !greetingBase.isEmpty()) {
+            // User provided base greeting, append Polish recording notice if not already there.
+            if (!greetingBase.toLowerCase(Locale.ROOT).contains(POLISH_RECORDING_KEYPHRASE)) {
+                greetingForFile = greetingBase + POLISH_RECORDING_NOTICE;
             } else {
                 greetingForFile = greetingBase;
             }
         } else {
-            // Construct a default greeting if base is empty
-            String namePart = userName.isEmpty() ? "the user" : userName;
-            // Using a slightly different default here for the generated file for clarity, or could match call one.
-            greetingForFile = String.format(Locale.US, "Hello, you have reached %s.%s", namePart, recordingNotice.trim());
+            // Construct a default greeting if base is empty using the R.string.default_greeting
+            // which already contains the Polish recording notice.
+            String namePart = (userName != null && !userName.isEmpty()) ? userName : ""; // Use empty string if name is null/empty for formatting
+            greetingForFile = String.format(getString(R.string.default_greeting), namePart);
         }
 
         if (greetingForFile.trim().isEmpty()) {

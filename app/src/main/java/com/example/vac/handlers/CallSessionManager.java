@@ -23,6 +23,8 @@ public class CallSessionManager implements
     
     private static final String TAG = "CallSessionManager";
     private static final String ACTION_TAKE_OVER = "com.example.vac.TAKE_OVER";
+    private static final String POLISH_RECORDING_NOTICE = " Ta rozmowa jest nagrywana.";
+    private static final String POLISH_RECORDING_KEYPHRASE = "rozmowa jest nagrywana";
     
     // States for the call screening process
     public enum State {
@@ -191,42 +193,32 @@ public class CallSessionManager implements
                 }
             } else {
                  try { Log.w(TAG, "'Use custom file' is true, but no path is stored. Falling back to TTS."); } catch (Throwable t) {}
-                 // greetingFile is already null here
             }
         }
 
         if (greetingFile != null) {
-            // Play the custom greeting file
             try { Log.i(TAG, "Playing custom greeting file: " + greetingFile.getAbsolutePath()); } catch (Throwable t) {}
             if (audioHandler != null) {
                 audioHandler.playAudioFile(Uri.fromFile(greetingFile));
             }
         } else {
-            // Fallback to TTS
             try { Log.i(TAG, "Falling back to TTS for greeting."); } catch (Throwable t) {}
             String userName = preferencesManager.getUserName();
             String baseGreetingText = preferencesManager.getGreetingText();
-            String recordingNotice = " This call is being recorded."; // Leading space is important
             String fullGreetingText;
 
             if (baseGreetingText != null && !baseGreetingText.trim().isEmpty()) {
-                if (!baseGreetingText.toLowerCase(Locale.ROOT).contains("call is being recorded")) {
-                    fullGreetingText = baseGreetingText + recordingNotice;
+                // User has provided a custom greeting text
+                if (!baseGreetingText.toLowerCase(Locale.ROOT).contains(POLISH_RECORDING_KEYPHRASE)) {
+                    fullGreetingText = baseGreetingText + POLISH_RECORDING_NOTICE;
                 } else {
                     fullGreetingText = baseGreetingText;
                 }
             } else {
-                String namePart = (userName != null && !userName.isEmpty()) ? userName : "the user";
-                // Assuming R.string.default_greeting needs to be fetched. 
-                // We need context to get string resources. CallSessionManager has it.
-                String defaultGreetingFormat = context.getString(com.example.vac.R.string.default_greeting);
-                String formattedDefault = String.format(defaultGreetingFormat, namePart);
-
-                if (!formattedDefault.toLowerCase(Locale.ROOT).contains("call is being recorded")) {
-                    fullGreetingText = formattedDefault + recordingNotice;
-                } else {
-                    fullGreetingText = formattedDefault;
-                }
+                // No custom greeting text, use the default Polish greeting from strings.xml
+                // This default greeting already contains the recording notice.
+                String namePart = (userName != null && !userName.isEmpty()) ? userName : ""; // Use empty string for formatting if name is null/empty
+                fullGreetingText = String.format(context.getString(com.example.vac.R.string.default_greeting), namePart);
             }
             
             if (audioHandler != null) {
