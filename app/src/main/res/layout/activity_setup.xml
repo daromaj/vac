@@ -209,5 +209,44 @@
                 android:layout_marginBottom="32dp" />
         </LinearLayout>
 
+        <!-- Custom Greeting File Section -->
+        <LinearLayout
+            android:id="@+id/custom_greeting_file_section_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="16dp" >
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/custom_greeting_file_section_title"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <Button
+                android:id="@+id/generate_greeting_file_button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/generate_greeting_file_button_text"
+                android:layout_marginBottom="8dp"/>
+
+            <Button
+                android:id="@+id/play_generated_greeting_button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/play_generated_greeting_button_text"
+                android:layout_marginBottom="8dp"/>
+
+            <TextView
+                android:id="@+id/custom_greeting_status_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/custom_greeting_status_default"
+                android:layout_marginBottom="16dp"/>
+
+        </LinearLayout>
+
     </LinearLayout>
 </ScrollView> 

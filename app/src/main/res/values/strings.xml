@@ -42,4 +42,10 @@
     <string name="screener_is_not_default">VAC is NOT the default call screener.</string>
     <string name="set_default_screener_button">Set Default Screener App</string>
     <string name="open_default_screener_settings_button">Open Default Screener Settings</string>
+
+    <!-- Custom Greeting File Setup -->
+    <string name="custom_greeting_file_section_title">Custom Greeting File</string>
+    <string name="generate_greeting_file_button_text">Generate Greeting File</string>
+    <string name="play_generated_greeting_button_text">Play Generated Greeting</string>
+    <string name="custom_greeting_status_default">Status: No custom greeting generated.</string>
 </resources>

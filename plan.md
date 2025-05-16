@@ -144,6 +144,79 @@
     - Regular calls (not answered by assistant) are unaffected.
     - All tests performed on Samsung Galaxy S21 Ultra (Android 14).
 
+### Advanced Greeting Setup (Optional MVP Extension)
+
+#### Task 4.1.1: UI for Custom Greeting Generation and Playback Controls
+- [x] **Owner:** DEV
+- **Description:** Add new UI elements to `SetupActivity` for managing a pre-recorded greeting. This includes:
+    - A button labeled "Generate Greeting File".
+    - A button labeled "Play Generated Greeting".
+    - Potentially a `TextView` to indicate the status or filename of the generated greeting.
+- **Acceptance Criteria:**
+    - New buttons ("Generate Greeting File", "Play Generated Greeting") are present and visible in `SetupActivity`'s layout.
+    - Associated UI elements (like a status TextView) are present if designed.
+    - These UI elements do not yet need to be functional; this task is for layout and resource creation only.
+    - App compiles, and existing unit tests pass.
+- **Test Scenarios (Unit Tests):**
+    - Visual inspection of `SetupActivity` layout.
+    - (No specific unit tests for non-functional UI elements, but existing tests should not break).
+
+#### Task 4.1.2: Implement "Generate Greeting File" Logic
+- [ ] **Owner:** DEV
+- **Description:** Implement the functionality for the "Generate Greeting File" button in `SetupActivity`. This involves:
+    - Retrieving the current user name and base greeting text (respecting defaults or user customizations for live TTS).
+    - Constructing the full greeting string (including "This call is being recorded").
+    - Using `TextToSpeech.synthesizeToFile()` (likely via a new method in `AudioHandler`) to save the synthesized audio to an app-specific file (e.g., `custom_greeting.wav` or `.mp3`).
+    - Updating the status `TextView` to show success (e.g., "Greeting file generated: custom_greeting.wav") or failure.
+    - Storing a preference (e.g., in `PreferencesManager`) indicating that a custom greeting file exists and should potentially be used.
+- **Acceptance Criteria:**
+    - Tapping "Generate Greeting File" button triggers TTS synthesis to a file.
+    - An audio file is saved in app-specific storage.
+    - Status UI is updated on success or failure.
+    - A preference is saved to note the existence/path of the custom file.
+    - App compiles, and existing unit tests pass.
+- **Test Scenarios (Unit Tests):**
+    - `test_generateGreetingFile_success()`: Verify TTS `synthesizeToFile` is called, file path is generated, preference is saved, UI status updates.
+    - `test_generateGreetingFile_ttsFailure()`: Verify error is handled, UI status updates.
+
+#### Task 4.1.3: Implement "Play Generated Greeting" Logic
+- [ ] **Owner:** DEV
+- **Description:** Implement the functionality for the "Play Generated Greeting" button in `SetupActivity`. This involves:
+    - Checking if a custom greeting file exists (based on preference or file system check).
+    - If it exists, using `MediaPlayer` (likely via `AudioHandler.playAudioFile()`) to play back the saved audio file.
+    - If it doesn't exist, disable the button or show a `Toast` "No generated greeting file found."
+- **Acceptance Criteria:**
+    - Tapping "Play Generated Greeting" plays the saved audio file if it exists.
+    - If no file exists, appropriate feedback is given.
+    - App compiles, and existing unit tests pass.
+- **Test Scenarios (Unit Tests):**
+    - `test_playGeneratedGreeting_fileExists()`: Verify `AudioHandler.playAudioFile()` is called with the correct file URI.
+    - `test_playGeneratedGreeting_noFile()`: Verify playback is not attempted, and UI feedback occurs.
+
+#### Task 4.1.4: Integrate Generated Greeting into Call Screening Flow
+- [ ] **Owner:** DEV
+- **Description:** Modify `CallSessionManager` (and potentially `AudioHandler`) to use the generated greeting file during actual call screening, IF one has been generated and is selected/enabled by the user.
+    - Add a preference (e.g., "use_custom_greeting_file" boolean) managed by `PreferencesManager`. This could be a `Switch` or `CheckBox` in `SetupActivity` near the new buttons.
+    - `CallSessionManager.startGreeting()` should check this preference.
+        - If true and file exists, instruct `AudioHandler` to play the file.
+        - Otherwise, fall back to the current live TTS greeting generation.
+- **Acceptance Criteria:**
+    - If "use custom greeting file" is enabled and file exists, `CallSessionManager` uses the file for the greeting during a call.
+    - Otherwise, live TTS is used as before.
+    - A UI element (e.g., Switch) in `SetupActivity` allows enabling/disabling the use of the generated file.
+    - App compiles, and existing unit tests pass.
+- **Test Scenarios (Unit Tests):**
+    - `test_callUsesGeneratedFile_ifEnabledAndExists()`.
+    - `test_callUsesLiveTTS_ifGeneratedFileDisabled()`.
+    - `test_callUsesLiveTTS_ifGeneratedFileMissing()` (even if enabled).
+
+#### Task 4.1.5: Unit Tests for Custom Greeting Feature
+- [ ] **Owner:** DEV
+- **Description:** Ensure comprehensive unit tests are created for all new logic introduced in tasks 4.1.2, 4.1.3, and 4.1.4. This includes testing interactions with `AudioHandler`, `PreferencesManager`, file system (mocked), and `SetupActivity` logic.
+- **Acceptance Criteria:**
+    - All new functionalities related to custom greeting generation, playback, and integration have corresponding unit tests.
+    - All unit tests pass.
+
 ## Phase 5: Speech-to-Text (STT) & Caller Interaction
 
 ### Task 5.1: `SpeechRecognizer` Integration (via `SpeechRecognitionHandler`)
