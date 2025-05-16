@@ -89,10 +89,20 @@ public class SpeechRecognitionHandler {
     
     public void release() {
         if (speechRecognizer != null) {
+            // It's good practice to stop listening before destroying, 
+            // though destroy() should handle ongoing operations.
+            if (isListening) {
+                try {
+                    speechRecognizer.stopListening();
+                } catch (Exception e) {
+                    Log.w(TAG, "Exception while stopping listening in release: " + e.getMessage());
+                }
+            }
             speechRecognizer.destroy();
             speechRecognizer = null;
             Log.d(TAG, "SpeechRecognizer released.");
         }
+        isListening = false; // Ensure isListening is reset
         context = null; // Release context
         listener = null; // Release listener
     }
