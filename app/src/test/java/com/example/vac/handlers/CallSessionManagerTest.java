@@ -247,17 +247,24 @@ public class CallSessionManagerTest {
     }
 
     @Test
-    @org.junit.Ignore("Test is flaky due to timing issues")
     public void test_onEndOfSpeech_thenSpeechResult_cancelsTimeout_noFollowUp() {
         setupSessionForListeningState(); // Puts in LISTENING state
+        org.mockito.Mockito.clearInvocations(mockAudioHandler); // Clear previous interactions
 
         // Act: Simulate end of speech
         callSessionManager.onEndOfSpeech();
-        assertEquals(CallSessionManager.State.LISTENING, callSessionManager.getCurrentState());
         
-        // Act: Simulate speech result after end of speech
+        // Act: Simulate speech result immediately (cancels timeout)
         callSessionManager.onSpeechResult("Test speech result");
-        assertEquals(CallSessionManager.State.LISTENING, callSessionManager.getCurrentState());
+        
+        // Wait just a tiny bit longer than the timeout would be
+        ShadowLooper.idleMainLooper(STT_SILENCE_TIMEOUT_MS_TEST + 100, java.util.concurrent.TimeUnit.MILLISECONDS);
+        
+        // Verify followup was not played because speech result cancelled it
+        verify(mockAudioHandler, never()).playFollowUpResponse();
+        
+        // The state should be RESPONDING after speech result
+        assertEquals(CallSessionManager.State.RESPONDING, callSessionManager.getCurrentState());
     }
 
     @Test
@@ -315,20 +322,44 @@ public class CallSessionManagerTest {
     }
 
     @Test
-    @org.junit.Ignore("Test is flaky due to timing issues")
     public void test_multipleOnEndOfSpeech_resetsTimeoutCorrectly() {
         setupSessionForListeningState();
-
-        // Simplify this test to not worry about the details of timeout handling,
-        // which can be flaky in test environments
+        org.mockito.Mockito.clearInvocations(mockAudioHandler); // Clear previous interactions
         
-        // Just check that calling onEndOfSpeech doesn't change the state
+        // Act: Simulate first end of speech
         callSessionManager.onEndOfSpeech();
+        
+        // Act: Immediately simulate speech result (cancels first timeout)
+        // This will call audioHandler.speak() with the LLM response
+        callSessionManager.onSpeechResult("intermediate result");
+        
+        // Verify we're in RESPONDING state after speech result
+        assertEquals(CallSessionManager.State.RESPONDING, callSessionManager.getCurrentState());
+        
+        // Simulate playback completion to return to LISTENING state
+        callSessionManager.onPlaybackCompleted();
+        
+        // Verify we're back in LISTENING state
         assertEquals(CallSessionManager.State.LISTENING, callSessionManager.getCurrentState());
         
-        // And that calling onSpeechResult after onEndOfSpeech still works correctly
-        callSessionManager.onSpeechResult("test result");
-        assertEquals(CallSessionManager.State.LISTENING, callSessionManager.getCurrentState());
+        // Now simulate end of speech again (schedules a new timeout)
+        callSessionManager.onEndOfSpeech();
+        
+        // Clear interactions again so we can verify the next actions cleanly
+        org.mockito.Mockito.clearInvocations(mockAudioHandler);
+        
+        // Wait just a bit less than the full timeout 
+        ShadowLooper.idleMainLooper(STT_SILENCE_TIMEOUT_MS_TEST - 500, java.util.concurrent.TimeUnit.MILLISECONDS);
+        
+        // Verify followup was NOT played yet
+        verify(mockAudioHandler, never()).playFollowUpResponse();
+        
+        // Wait the rest of the timeout period plus a little buffer
+        ShadowLooper.idleMainLooper(1000, java.util.concurrent.TimeUnit.MILLISECONDS);
+        
+        // Verify timeout triggered and followup WAS played after the full second timeout
+        verify(mockAudioHandler, times(1)).playFollowUpResponse();
+        assertEquals(CallSessionManager.State.RESPONDING, callSessionManager.getCurrentState());
     }
 
     // Unit Tests for Task 5.4: User Take-Over Call Logic
@@ -356,20 +387,22 @@ public class CallSessionManagerTest {
     }
 
     @Test
-    public void test_userTakeOverStopsAndSavesRecording() { // Renamed and logic corrected
-        // Assume recording might have been started at some point
-        // For this test, directly set state to something like RECORDING_VOICEMAIL if such a state exists,
-        // or ensure startRecording was called.
-        // For simplicity, we'll just call userTakesOver and verify stopRecording.
-        // We can simulate that recording was active by, for example, calling onSpeechResult to trigger startRecordingVoicemail
+    public void test_userTakeOverKeepsRecordingActive() {
+        // Ensure recording is started
+        callSessionManager.startScreening();
         
-        // To ensure MessageRecorderHandler is created and potentially active:
-        callSessionManager.startScreening(); // This will create MessageRecorderHandler and attempt to start recording.
-
+        // Clear previous interactions
+        org.mockito.Mockito.clearInvocations(mockMessageRecorderHandler);
+        
+        // User takes over the call
         callSessionManager.userTakesOver();
-
-        verify(mockMessageRecorderHandler).stopRecording(); // Verify recording is stopped
-        verify(mockMessageRecorderHandler).release();       // Verify recorder is released
+        
+        // Recording should CONTINUE during user takeover, not be stopped
+        verify(mockMessageRecorderHandler, never()).stopRecording();
+        verify(mockMessageRecorderHandler, never()).release();
+        
+        // State should be USER_TAKEOVER
+        assertEquals(CallSessionManager.State.USER_TAKEOVER, callSessionManager.getCurrentState());
     }
 
     @Test
@@ -448,5 +481,36 @@ public class CallSessionManagerTest {
         
         // Verify final state is ENDED
         assertEquals(CallSessionManager.State.ENDED, callSessionManager.getCurrentState());
+    }
+
+    @Test
+    public void test_recordingContinuesOnUserTakeOver() {
+        // Setup recording
+        when(mockMessageRecorderHandler.isRecording()).thenReturn(true);
+        callSessionManager.startScreening();
+        
+        // Verify recording has started
+        verify(mockMessageRecorderHandler).startRecording(anyString());
+        
+        // Transition to different states to simulate a real call flow
+        callSessionManager.startGreeting();
+        callSessionManager.onPlaybackCompleted(); // Moves to LISTENING state
+        
+        // Now user takes over
+        callSessionManager.userTakesOver();
+        
+        // Verify specific state changes
+        assertEquals(CallSessionManager.State.USER_TAKEOVER, callSessionManager.getCurrentState());
+        // Verify listener was notified of user takeover
+        verify(mockSessionListener).onUserTookOver(callSessionManager);
+        
+        // Verify recording continues (not stopped)
+        verify(mockMessageRecorderHandler, never()).stopRecording();
+        verify(mockMessageRecorderHandler, never()).release();
+        
+        // Call end should still stop recording
+        callSessionManager.stopScreening();
+        verify(mockMessageRecorderHandler).stopRecording();
+        verify(mockMessageRecorderHandler).release();
     }
 } 

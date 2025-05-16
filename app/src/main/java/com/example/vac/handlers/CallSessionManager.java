@@ -566,11 +566,22 @@ public class CallSessionManager implements
             speechRecognitionHandler = null;
         }
 
-        // Stop and release MessageRecorderHandler
+        // For MessageRecorderHandler:
+        // If dueToUserTakeover is true, don't stop recording (continue recording during user takeover)
+        // Only stop recording if this is a final call termination (dueToUserTakeover is false)
         if (messageRecorderHandler != null) {
-            messageRecorderHandler.stopRecording(); // Ensure recording is stopped
-            messageRecorderHandler.release();
-            messageRecorderHandler = null;
+            if (!dueToUserTakeover) {
+                Log.d(TAG, "Stopping and releasing MessageRecorderHandler.");
+                messageRecorderHandler.stopRecording(); // Stop recording only for non-takeover releases
+            } else {
+                Log.d(TAG, "Keeping recording active during user takeover.");
+            }
+            
+            // Only release the recorder completely if this isn't a user takeover
+            if (!dueToUserTakeover) {
+                messageRecorderHandler.release();
+                messageRecorderHandler = null;
+            }
         }
         
         Log.d(TAG, "releaseInternal completed.");
