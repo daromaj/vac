@@ -227,7 +227,7 @@
     - `test_speechRecognizerUsesPolishLocale()`: Verify the Intent passed to `startListening()` has `EXTRA_LANGUAGE` set to "pl-PL".
 
 ### Task 5.2: STT Callbacks & Stop Detection (via `SpeechRecognitionHandler`)
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** Implement `RecognitionListener` within `SpeechRecognitionHandler` to handle STT results, errors, and end-of-speech. Implement the 2-3 second silence timeout logic within `CallSessionManager` after `onEndOfSpeech()`.
 - **Acceptance Criteria:**
     - `SpeechRecognitionHandler` correctly relays `onResults()` to `CallSessionManager`.

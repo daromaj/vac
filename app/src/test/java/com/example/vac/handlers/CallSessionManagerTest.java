@@ -1,6 +1,8 @@
 package com.example.vac.handlers;
 
 import android.content.Context;
+import android.os.Looper; // Ensure this is present for ShadowLooper
+import android.speech.SpeechRecognizer; // Import for SpeechRecognizer.ERROR_CLIENT
 import android.telecom.Call;
 import android.net.Uri;
 import android.app.PendingIntent;
@@ -17,6 +19,7 @@ import org.mockito.MockitoAnnotations;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
+import org.robolectric.shadows.ShadowLooper; // Import for controlling Handler posts
 
 import java.io.File;
 import java.io.IOException;
@@ -36,7 +39,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 @RunWith(RobolectricTestRunner.class)
-@Config(manifest=Config.NONE)
+@Config(manifest=Config.NONE, sdk = Config.NEWEST_SDK) // Added SDK for consistency, though might not be strictly needed for these tests
 public class CallSessionManagerTest {
 
     @Mock private Context mockContext;
@@ -52,6 +55,7 @@ public class CallSessionManagerTest {
     private String defaultGreetingFormatString = "Witaj, dodzwoniłeś się do %1$s. Jestem jego wirtualnym asystentem. Uprzedzam, że rozmowa jest nagrywana. Powiedz proszę w jakiej sprawie dzwonisz a ja postaram Ci się pomóc.";
     private static final String POLISH_RECORDING_NOTICE = " Ta rozmowa jest nagrywana.";
     private static final String POLISH_RECORDING_KEYPHRASE = "rozmowa jest nagrywana";
+    private static final long STT_SILENCE_TIMEOUT_MS_TEST = 3000; // Match constant in SUT
 
     @Before
     public void setUp() {
@@ -64,7 +68,8 @@ public class CallSessionManagerTest {
         Context realContext = RuntimeEnvironment.getApplication();
         when(mockContext.getApplicationContext()).thenReturn(realContext);
         when(mockContext.getString(R.string.default_greeting)).thenReturn(defaultGreetingFormatString);
-
+        // Ensure Looper is prepared for the sttTimeoutHandler if not already by default in Robolectric
+        // ShadowLooper.pauseMainLooper(); // Might be useful to control execution precisely
 
         callSessionManager = new CallSessionManager(mockContext, mockCallDetails, mockSessionListener, mockNotificationHandler) {
             @Override
@@ -207,5 +212,137 @@ public class CallSessionManagerTest {
         assertEquals("State should be LISTENING after greeting playback completes", 
                      CallSessionManager.State.LISTENING, callSessionManager.getCurrentState());
         verify(mockNotificationHandler, times(1)).updateNotification(eq("Listening to caller..."));
+    }
+
+    // --- Tests for STT Silence Timeout Logic (Task 5.2) ---
+
+    private void setupSessionForListeningState() {
+        // Reach GREETING state
+        when(mockPreferencesManager.shouldUseCustomGreetingFile()).thenReturn(false);
+        callSessionManager.startGreeting();
+        // Simulate greeting playback completion to reach LISTENING state
+        callSessionManager.onPlaybackCompleted();
+        // Verify we are in LISTENING state and STT started
+        assertEquals(CallSessionManager.State.LISTENING, callSessionManager.getCurrentState());
+        verify(mockSpeechRecognitionHandler).startListening(eq("pl-PL"));
+        // Clear interactions that happened during setup to focus on the specific test part
+        org.mockito.Mockito.clearInvocations(mockAudioHandler, mockNotificationHandler, mockSpeechRecognitionHandler);
+    }
+
+    @Test
+    public void test_onEndOfSpeech_startsTimeout_thenTimeoutOccurs_playsFollowUp() {
+        setupSessionForListeningState();
+
+        // Act: Simulate end of speech
+        callSessionManager.onEndOfSpeech();
+        verify(mockAudioHandler, never()).playFollowUpResponse(); // Should not play immediately
+
+        // Act: Advance time beyond timeout
+        ShadowLooper.idleMainLooper(STT_SILENCE_TIMEOUT_MS_TEST, java.util.concurrent.TimeUnit.MILLISECONDS);
+
+        // Assert: Follow-up response is played
+        verify(mockAudioHandler, times(1)).playFollowUpResponse();
+        assertEquals(CallSessionManager.State.RESPONDING, callSessionManager.getCurrentState());
+    }
+
+    @Test
+    public void test_onEndOfSpeech_thenSpeechResult_cancelsTimeout_noFollowUp() {
+        setupSessionForListeningState();
+
+        // Act: Simulate end of speech - timeout is now scheduled
+        callSessionManager.onEndOfSpeech();
+
+        // Act: Simulate speech result before timeout
+        callSessionManager.onSpeechResult("Some recognized text");
+        verify(mockSessionListener).onTranscriptionUpdate("Some recognized text");
+
+        // Act: Advance time beyond original timeout duration
+        ShadowLooper.idleMainLooper(STT_SILENCE_TIMEOUT_MS_TEST, java.util.concurrent.TimeUnit.MILLISECONDS);
+
+        // Assert: Follow-up response is NOT played because speech result cancelled it
+        verify(mockAudioHandler, never()).playFollowUpResponse();
+        // State should remain LISTENING as onSpeechResult doesn't change it directly in this flow
+        assertEquals(CallSessionManager.State.LISTENING, callSessionManager.getCurrentState());
+    }
+
+    @Test
+    public void test_onEndOfSpeech_thenSpeechError_cancelsTimeout_playsFollowUpOnError() {
+        setupSessionForListeningState();
+
+        // Act: Simulate end of speech - timeout is now scheduled
+        callSessionManager.onEndOfSpeech();
+
+        // Act: Simulate speech error before timeout
+        callSessionManager.onSpeechError("Test error", SpeechRecognizer.ERROR_CLIENT);
+        // Current onSpeechError logic in LISTENING state directly calls playFollowUpResponse()
+        verify(mockAudioHandler, times(1)).playFollowUpResponse(); 
+        assertEquals(CallSessionManager.State.RESPONDING, callSessionManager.getCurrentState());
+
+        // Act: Advance time beyond original timeout duration
+        ShadowLooper.idleMainLooper(STT_SILENCE_TIMEOUT_MS_TEST, java.util.concurrent.TimeUnit.MILLISECONDS);
+
+        // Assert: Follow-up response should only have been played once (due to error handling)
+        verify(mockAudioHandler, times(1)).playFollowUpResponse(); 
+    }
+
+    @Test
+    public void test_onEndOfSpeech_thenUserTakesOver_cancelsTimeout_noFollowUp() {
+        setupSessionForListeningState();
+
+        // Act: Simulate end of speech - timeout is now scheduled
+        callSessionManager.onEndOfSpeech();
+
+        // Act: User takes over before timeout
+        callSessionManager.userTakesOver();
+        verify(mockSessionListener).onUserTookOver(callSessionManager);
+
+        // Act: Advance time beyond original timeout duration
+        ShadowLooper.idleMainLooper(STT_SILENCE_TIMEOUT_MS_TEST, java.util.concurrent.TimeUnit.MILLISECONDS);
+
+        // Assert: Follow-up response is NOT played
+        verify(mockAudioHandler, never()).playFollowUpResponse();
+        assertEquals(CallSessionManager.State.USER_TAKEOVER, callSessionManager.getCurrentState());
+    }
+
+    @Test
+    public void test_onEndOfSpeech_thenStopScreening_cancelsTimeout_noFollowUp() {
+        setupSessionForListeningState();
+
+        // Act: Simulate end of speech - timeout is now scheduled
+        callSessionManager.onEndOfSpeech();
+
+        // Act: Stop screening before timeout
+        callSessionManager.stopScreening(false);
+
+        // Act: Advance time beyond original timeout duration
+        ShadowLooper.idleMainLooper(STT_SILENCE_TIMEOUT_MS_TEST, java.util.concurrent.TimeUnit.MILLISECONDS);
+
+        // Assert: Follow-up response is NOT played
+        verify(mockAudioHandler, never()).playFollowUpResponse();
+        assertEquals(CallSessionManager.State.ENDED, callSessionManager.getCurrentState());
+    }
+
+    @Test
+    public void test_multipleOnEndOfSpeech_resetsTimeoutCorrectly() {
+        setupSessionForListeningState();
+
+        // Act: Simulate first end of speech
+        callSessionManager.onEndOfSpeech();
+        verify(mockAudioHandler, never()).playFollowUpResponse();
+
+        // Act: Advance time part way (less than timeout)
+        ShadowLooper.idleMainLooper(STT_SILENCE_TIMEOUT_MS_TEST / 2, java.util.concurrent.TimeUnit.MILLISECONDS);
+        verify(mockAudioHandler, never()).playFollowUpResponse(); // Still shouldn't have played
+
+        // Act: Simulate another end of speech (e.g. from continuous recognition)
+        callSessionManager.onEndOfSpeech(); 
+        verify(mockAudioHandler, never()).playFollowUpResponse(); // Still shouldn't have played
+
+        // Act: Advance time beyond the original timeout from the *second* onEndOfSpeech call
+        ShadowLooper.idleMainLooper(STT_SILENCE_TIMEOUT_MS_TEST, java.util.concurrent.TimeUnit.MILLISECONDS);
+
+        // Assert: Follow-up response is played ONCE
+        verify(mockAudioHandler, times(1)).playFollowUpResponse();
+        assertEquals(CallSessionManager.State.RESPONDING, callSessionManager.getCurrentState());
     }
 } 
