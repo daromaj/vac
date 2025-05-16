@@ -16,7 +16,7 @@ import com.example.vac.R;
 public class NotificationHandler {
     private static final String TAG = "NotificationHandler";
     private static final int NOTIFICATION_ID = 1001;
-    private static final String CHANNEL_ID = "vac_call_screening_channel";
+    private static final String CHANNEL_ID = "VAC_CALL_SCREENING_CHANNEL";
     private static final String ACTION_TAKE_OVER = "com.example.vac.TAKE_OVER";
     
     private final Context context;
@@ -40,7 +40,7 @@ public class NotificationHandler {
         notificationBuilder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setContentTitle("Call Assistant Active")
                 .setContentText(initialMessage)
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setSmallIcon(R.mipmap.ic_launcher)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setOngoing(true);
         

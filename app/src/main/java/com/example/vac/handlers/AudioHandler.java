@@ -7,8 +7,11 @@ import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.TextToSpeech.OnInitListener;
 import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
+
+import androidx.annotation.Nullable;
 
 import com.example.vac.R;
 
@@ -30,117 +33,179 @@ public class AudioHandler {
     private final AudioHandlerListener listener;
     private final AudioManager audioManager;
     
-    private TextToSpeech tts;
+    TextToSpeech tts; // Package-private for test access
     private MediaPlayer mediaPlayer;
     private AudioFocusRequest audioFocusRequest;
     private boolean isPlayingAudio = false;
     
     /**
-     * Constructor for AudioHandler
-     * 
-     * @param context The context
-     * @param listener The listener for audio events
+     * Primary constructor used by the application.
+     * Creates and initializes its own TextToSpeech engine.
      */
     public AudioHandler(Context context, AudioHandlerListener listener) {
+        this(context, listener, null);
+    }
+
+    /**
+     * Constructor that allows injecting a TextToSpeech engine (primarily for testing).
+     * If ttsEngine is null, a new one will be created and initialized.
+     * If ttsEngine is provided, it will be configured directly.
+     */
+    public AudioHandler(Context context, AudioHandlerListener listener, @Nullable TextToSpeech ttsEngine) {
         this.context = context;
         this.listener = listener;
         this.audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-        
-        initializeTts();
+
+        if (ttsEngine != null) {
+            this.tts = ttsEngine;
+            configureExistingTtsInstance();
+        } else {
+            initializeNewTts();
+        }
+    }
+    
+    protected TextToSpeech createTextToSpeech(Context context, TextToSpeech.OnInitListener listener) {
+        try {
+            return new TextToSpeech(context, listener);
+        } catch (Exception e) {
+            try { Log.e(TAG, "Failed to create TextToSpeech instance: " + e.getMessage()); } catch (Throwable t) {}
+            return null; 
+        }
     }
     
     /**
-     * Initialize the TextToSpeech engine
+     * Creates and initializes a new TextToSpeech engine.
      */
-    private void initializeTts() {
-        tts = new TextToSpeech(context, status -> {
-            if (status == TextToSpeech.SUCCESS) {
-                // For MVP we use default Locale - could be enhanced to use Polish
-                int result = tts.setLanguage(Locale.getDefault());
-                
-                if (result == TextToSpeech.LANG_MISSING_DATA || 
-                    result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                    Log.e(TAG, "Language not supported for TTS");
-                }
-                
-                // Set up utterance progress listener
-                tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
-                    @Override
-                    public void onStart(String utteranceId) {
-                        isPlayingAudio = true;
-                        if (listener != null) {
-                            listener.onPlaybackStarted();
-                        }
-                    }
-                    
-                    @Override
-                    public void onDone(String utteranceId) {
-                        isPlayingAudio = false;
-                        releaseAudioFocus();
-                        if (listener != null) {
-                            listener.onPlaybackCompleted();
-                        }
-                    }
-                    
-                    @Override
-                    public void onError(String utteranceId) {
-                        isPlayingAudio = false;
-                        releaseAudioFocus();
-                        if (listener != null) {
-                            listener.onPlaybackError("TTS error for utterance: " + utteranceId);
-                        }
-                    }
-
-                    @Override
-                    public void onError(String utteranceId, int errorCode) {
-                        isPlayingAudio = false;
-                        releaseAudioFocus();
-                        if (listener != null) {
-                            listener.onPlaybackError("TTS error for utterance: " + utteranceId + 
-                                                    ", code: " + errorCode);
-                        }
-                    }
-                });
+    private void initializeNewTts() {
+        this.tts = createTextToSpeech(context, status -> {
+            if (status == TextToSpeech.SUCCESS && this.tts != null) {
+                configureExistingTtsInstance();
             } else {
-                Log.e(TAG, "TTS initialization failed with status: " + status);
-                if (listener != null) {
-                    listener.onPlaybackError("TTS initialization failed");
+                try { Log.e(TAG, "TTS init failed, status: " + status + " or TTS null."); } catch (Throwable t) {}
+                if (this.listener != null) {
+                    this.listener.onPlaybackError("TTS initialization failed or engine unavailable.");
                 }
             }
         });
+        if (this.tts == null && this.listener != null) {
+             try { Log.d(TAG, "TTS engine was null after creation attempt, notifying listener."); } catch (Throwable t) {}
+             this.listener.onPlaybackError("TTS engine creation failed outright.");
+        }
+    }
+
+    /**
+     * Configures an already existing (and successfully initialized) TextToSpeech instance.
+     * Sets language and utterance progress listener.
+     */
+    private void configureExistingTtsInstance() {
+        if (this.tts == null) {
+            try { Log.e(TAG, "configureExistingTtsInstance: TTS engine is null."); } catch (Throwable t) {}
+            return;
+        }
+        try {
+            int result = this.tts.setLanguage(new Locale("pl", "PL"));
+            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                try { Log.e(TAG, "Polish lang not supported for TTS."); } catch (Throwable t) {}
+            } else {
+                try { Log.i(TAG, "TTS language set to Polish."); } catch (Throwable t) {}
+            }
+        } catch (Exception e) { 
+            try { Log.e(TAG, "Exception setting TTS language: " + e.getMessage()); } catch (Throwable t) {}
+            this.tts = null; 
+            if (this.listener != null) this.listener.onPlaybackError("TTS language configuration failed.");
+            return; 
+        }
+        try {
+            this.tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                @Override
+                public void onStart(String utteranceId) {
+                    isPlayingAudio = true;
+                    if (AudioHandler.this.listener != null) {
+                        AudioHandler.this.listener.onPlaybackStarted();
+                    }
+                }
+                
+                @Override
+                public void onDone(String utteranceId) {
+                    isPlayingAudio = false;
+                    releaseAudioFocus();
+                    if (AudioHandler.this.listener != null) {
+                        AudioHandler.this.listener.onPlaybackCompleted();
+                    }
+                }
+                
+                @Override
+                public void onError(String utteranceId) {
+                    isPlayingAudio = false;
+                    releaseAudioFocus();
+                    if (AudioHandler.this.listener != null) {
+                        AudioHandler.this.listener.onPlaybackError("TTS error for utterance: " + utteranceId);
+                    }
+                }
+
+                @Override
+                public void onError(String utteranceId, int errorCode) {
+                    isPlayingAudio = false;
+                    releaseAudioFocus();
+                    if (AudioHandler.this.listener != null) {
+                        AudioHandler.this.listener.onPlaybackError("TTS error for utterance: " + utteranceId +
+                                                        ", code: " + errorCode);
+                    }
+                }
+            });
+        } catch (Exception e) { 
+            try { Log.e(TAG, "Exception setting TTS Listener: " + e.getMessage()); } catch (Throwable t) {}
+            this.tts = null; 
+            if (this.listener != null) this.listener.onPlaybackError("TTS listener configuration failed.");
+        }
     }
     
     /**
-     * Play the greeting to the caller
-     * 
-     * @param userName The user's name
-     * @param customGreeting The custom greeting text (if provided)
+     * Play the greeting to the caller using the provided full greeting text.
+     *
+     * @param fullGreetingText The complete greeting string to be spoken.
      */
-    public void playGreeting(String userName, String customGreeting) {
+    public void playGreeting(String fullGreetingText) {
+        if (this.tts == null) {
+            try { Log.e(TAG, "playGreeting: TTS engine not available."); } catch (Throwable t) {}
+            if (listener != null) listener.onPlaybackError("TTS engine not available.");
+            return;
+        }
+        if (fullGreetingText == null || fullGreetingText.isEmpty()) {
+            try { Log.e(TAG, "playGreeting: Greeting text is empty."); } catch (Throwable t) {}
+            if (listener != null) listener.onPlaybackError("Greeting text is empty.");
+            return;
+        }
         if (isPlayingAudio) {
+             try { Log.w(TAG, "playGreeting called while already playing audio."); } catch (Throwable t) {}
             stopPlayback();
         }
-        
-        String greeting;
-        
-        if (customGreeting != null && !customGreeting.isEmpty()) {
-            // Use custom greeting
-            greeting = customGreeting;
-        } else {
-            // Use default greeting with username
-            greeting = context.getString(R.string.default_greeting, userName);
-        }
-        
-        // Request audio focus and play TTS
+        try { Log.i(TAG, "Attempting to play greeting: " + fullGreetingText); } catch (Throwable t) {}
         if (requestAudioFocus()) {
             HashMap<String, String> params = new HashMap<>();
             params.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, UTTERANCE_ID_GREETING);
             
-            tts.speak(greeting, TextToSpeech.QUEUE_FLUSH, params);
-        } else {
-            if (listener != null) {
-                listener.onPlaybackError("Failed to get audio focus for greeting");
+            // Ensure TTS engine is ready (it should be if initializeTts was successful)
+            if (tts != null) {
+                try {
+                    tts.speak(fullGreetingText, TextToSpeech.QUEUE_FLUSH, params);
+                } catch (Exception e) {
+                    try { Log.e(TAG, "Exception during tts.speak(): " + e.getMessage()); } catch (Throwable t) {}
+                    if (listener != null) {
+                        listener.onPlaybackError("TTS speak operation failed.");
+                    }
+                    releaseAudioFocus(); // Release focus if speaking failed
+                }
+            } else {
+                try { Log.e(TAG, "TTS engine not available in playGreeting."); } catch (Throwable t) {}
+                if (listener != null) {
+                    listener.onPlaybackError("TTS engine not available.");
+                }
+                releaseAudioFocus(); // Release focus if we can't speak
             }
+        } else {
+             try { Log.e(TAG, "Failed to get audio focus for greeting."); } catch (Throwable t) {}
+            if (listener != null) listener.onPlaybackError("Failed to get audio focus for greeting");
         }
     }
     
@@ -221,7 +286,7 @@ public class AudioHandler {
             
             mediaPlayer.prepareAsync();
         } catch (IOException e) {
-            Log.e(TAG, "Error setting up MediaPlayer", e);
+            try { Log.e(TAG, "Error setting up MediaPlayer", e); } catch (Throwable t) {}
             if (listener != null) {
                 listener.onPlaybackError("Error setting up MediaPlayer: " + e.getMessage());
             }
@@ -232,13 +297,22 @@ public class AudioHandler {
      * Stop any ongoing playback
      */
     public void stopPlayback() {
-        if (tts != null && tts.isSpeaking()) {
-            tts.stop();
+        try {
+            if (tts != null && tts.isSpeaking()) {
+                tts.stop();
+            }
+        } catch (Exception e) {
+            try { Log.e(TAG, "Exception during tts.stop() or tts.isSpeaking(): " + e.getMessage()); } catch (Throwable t) {}
+            // Don't propagate, primary goal is to stop audio and release focus
         }
         
-        if (mediaPlayer != null && mediaPlayer.isPlaying()) {
-            mediaPlayer.stop();
-            mediaPlayer.reset();
+        try {
+            if (mediaPlayer != null && mediaPlayer.isPlaying()) {
+                mediaPlayer.stop();
+                mediaPlayer.reset();
+            }
+        } catch (Exception e) {
+            try { Log.e(TAG, "Exception during mediaPlayer.stop()/reset(): " + e.getMessage()); } catch (Throwable t) {}
         }
         
         isPlayingAudio = false;
@@ -299,17 +373,25 @@ public class AudioHandler {
      * Release all resources
      */
     public void release() {
-        stopPlayback();
+        stopPlayback(); // stopPlayback is now more robust
         
-        if (tts != null) {
-            tts.shutdown();
-            tts = null;
+        try {
+            if (tts != null) {
+                tts.shutdown();
+            }
+        } catch (Exception e) {
+            try { Log.e(TAG, "Exception during tts.shutdown(): " + e.getMessage()); } catch (Throwable t) {}
         }
+        tts = null; // Ensure tts is null after release
         
-        if (mediaPlayer != null) {
-            mediaPlayer.release();
-            mediaPlayer = null;
+        try {
+            if (mediaPlayer != null) {
+                mediaPlayer.release();
+            }
+        } catch (Exception e) {
+            try { Log.e(TAG, "Exception during mediaPlayer.release(): " + e.getMessage()); } catch (Throwable t) {}
         }
+        mediaPlayer = null; // Ensure mediaPlayer is null after release
     }
     
     /**

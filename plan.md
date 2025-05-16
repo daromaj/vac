@@ -120,7 +120,7 @@
     - (Difficult to unit test directly; relies on system integration. Focus on components called by the service).
 
 ### Task 3.3: Assistant Greeting Playback
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** Implement assistant greeting playback using `TextToSpeech` (TTS) or `MediaPlayer` for pre-recorded audio. The greeting should use the user's name from Setup and include the mandatory "This call is being recorded" disclosure.
 - **Acceptance Criteria:**
     - Greeting plays clearly when the assistant answers.
