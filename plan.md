@@ -136,7 +136,7 @@
 ## Phase 4: QA - Call Triggering & Greeting
 
 ### Task 4.1: Call Screening & Greeting Verification
-- [ ] **Owner:** QA (USER)
+- [x] **Owner:** QA (USER)
 - **Description:** Verify that incoming calls are correctly screened by the assistant and the initial greeting is played as configured.
 - **Acceptance Criteria:**
     - On an incoming call, the assistant answers (or provides UI to answer with assistant).

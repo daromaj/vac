@@ -14,244 +14,213 @@ import java.util.Locale;
 /**
  * Handles speech recognition (STT) for the call screening service.
  */
-public class SpeechRecognitionHandler implements RecognitionListener {
-    private static final String TAG = "SpeechRecognitionHandler";
+public class SpeechRecognitionHandler {
+    private static final String TAG = "SpeechRecHandler";
     
-    private final Context context;
-    private final SpeechRecognitionCallbacks callbacks;
     private SpeechRecognizer speechRecognizer;
+    private Context context;
+    private SpeechRecognitionCallbacks listener;
     private boolean isListening = false;
     
-    /**
-     * Constructor for SpeechRecognitionHandler
-     * 
-     * @param context The context
-     * @param callbacks The callbacks for speech recognition events
-     */
-    public SpeechRecognitionHandler(Context context, SpeechRecognitionCallbacks callbacks) {
-        this.context = context;
-        this.callbacks = callbacks;
-        
-        initializeSpeechRecognizer();
-    }
-    
-    /**
-     * Initialize the speech recognizer
-     */
-    private void initializeSpeechRecognizer() {
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            Log.e(TAG, "Speech recognition is not available on this device");
-            if (callbacks != null) {
-                callbacks.onSpeechError("Speech recognition is not available on this device", -1);
-            }
-            return;
-        }
-        
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context);
-        speechRecognizer.setRecognitionListener(this);
-    }
-    
-    /**
-     * Start listening for speech
-     * 
-     * @param languageCode The language code to use (e.g., "pl-PL")
-     */
-    public void startListening(String languageCode) {
-        if (speechRecognizer == null) {
-            Log.e(TAG, "Speech recognizer is null");
-            return;
-        }
-        
-        if (isListening) {
-            stopListening();
-        }
-        
-        Intent recognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageCode);
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, languageCode);
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, true);
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
-        
-        // For call screening, we want continuous recognition
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 3000);
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 500);
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 2000);
-        
-        try {
-            isListening = true;
-            speechRecognizer.startListening(recognizerIntent);
-            Log.d(TAG, "Started listening for speech");
-        } catch (Exception e) {
-            Log.e(TAG, "Error starting speech recognition", e);
-            isListening = false;
-            if (callbacks != null) {
-                callbacks.onSpeechError("Error starting speech recognition: " + e.getMessage(), -1);
-            }
-        }
-    }
-    
-    /**
-     * Stop listening for speech
-     */
-    public void stopListening() {
-        if (speechRecognizer != null && isListening) {
-            try {
-                speechRecognizer.stopListening();
-                Log.d(TAG, "Stopped listening for speech");
-            } catch (Exception e) {
-                Log.e(TAG, "Error stopping speech recognition", e);
-            } finally {
-                isListening = false;
-            }
-        }
-    }
-    
-    /**
-     * Release all resources
-     */
-    public void release() {
-        stopListening();
-        
-        if (speechRecognizer != null) {
-            try {
-                speechRecognizer.destroy();
-                Log.d(TAG, "Speech recognizer destroyed");
-            } catch (Exception e) {
-                Log.e(TAG, "Error destroying speech recognizer", e);
-            } finally {
-                speechRecognizer = null;
-            }
-        }
-    }
-    
-    // RecognitionListener implementation
-    
-    @Override
-    public void onReadyForSpeech(Bundle params) {
-        Log.d(TAG, "Ready for speech");
-        if (callbacks != null) {
-            callbacks.onReadyForSpeech();
-        }
-    }
-    
-    @Override
-    public void onBeginningOfSpeech() {
-        Log.d(TAG, "Beginning of speech");
-    }
-    
-    @Override
-    public void onRmsChanged(float rmsdB) {
-        // Not used in MVP
-    }
-    
-    @Override
-    public void onBufferReceived(byte[] buffer) {
-        // Not used in MVP
-    }
-    
-    @Override
-    public void onEndOfSpeech() {
-        Log.d(TAG, "End of speech");
-        isListening = false;
-        
-        if (callbacks != null) {
-            callbacks.onEndOfSpeech();
-        }
-    }
-    
-    @Override
-    public void onError(int error) {
-        isListening = false;
-        
-        String errorMessage;
-        switch (error) {
-            case SpeechRecognizer.ERROR_AUDIO:
-                errorMessage = "Audio recording error";
-                break;
-            case SpeechRecognizer.ERROR_CLIENT:
-                errorMessage = "Client side error";
-                break;
-            case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS:
-                errorMessage = "Insufficient permissions";
-                break;
-            case SpeechRecognizer.ERROR_NETWORK:
-                errorMessage = "Network error";
-                break;
-            case SpeechRecognizer.ERROR_NETWORK_TIMEOUT:
-                errorMessage = "Network timeout";
-                break;
-            case SpeechRecognizer.ERROR_NO_MATCH:
-                errorMessage = "No recognition match";
-                break;
-            case SpeechRecognizer.ERROR_RECOGNIZER_BUSY:
-                errorMessage = "RecognitionService busy";
-                break;
-            case SpeechRecognizer.ERROR_SERVER:
-                errorMessage = "Server error";
-                break;
-            case SpeechRecognizer.ERROR_SPEECH_TIMEOUT:
-                errorMessage = "No speech input";
-                break;
-            default:
-                errorMessage = "Unknown error";
-                break;
-        }
-        
-        Log.e(TAG, "Error in speech recognition: " + errorMessage + " (" + error + ")");
-        
-        if (callbacks != null) {
-            callbacks.onSpeechError(errorMessage, error);
-        }
-    }
-    
-    @Override
-    public void onResults(Bundle results) {
-        isListening = false;
-        
-        ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-        if (matches != null && !matches.isEmpty()) {
-            String bestMatch = matches.get(0);
-            Log.d(TAG, "Speech recognition result: " + bestMatch);
-            
-            if (callbacks != null) {
-                callbacks.onSpeechResult(bestMatch);
-            }
-        } else {
-            Log.d(TAG, "No speech recognition results");
-            
-            if (callbacks != null) {
-                callbacks.onSpeechError("No speech recognition results", -1);
-            }
-        }
-    }
-    
-    @Override
-    public void onPartialResults(Bundle partialResults) {
-        ArrayList<String> matches = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-        if (matches != null && !matches.isEmpty()) {
-            String bestMatch = matches.get(0);
-            Log.d(TAG, "Partial speech recognition result: " + bestMatch);
-            
-            if (callbacks != null) {
-                callbacks.onSpeechResult(bestMatch);
-            }
-        }
-    }
-    
-    @Override
-    public void onEvent(int eventType, Bundle params) {
-        // Not used in MVP
-    }
-    
-    /**
-     * Interface for SpeechRecognitionHandler to communicate with CallSessionManager
-     */
     public interface SpeechRecognitionCallbacks {
         void onReadyForSpeech();
         void onSpeechResult(String transcribedText);
         void onEndOfSpeech();
         void onSpeechError(String errorMessage, int errorCode);
+    }
+    
+    public SpeechRecognitionHandler(Context context, SpeechRecognitionCallbacks listener) {
+        this.context = context;
+        this.listener = listener;
+        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+            Log.e(TAG, "Speech recognition is not available on this device.");
+            if (listener != null) {
+                listener.onSpeechError("Speech recognition not available", -1); // Custom error code
+            }
+            return;
+        }
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context);
+        speechRecognizer.setRecognitionListener(new VoiceRecognitionListener());
+    }
+    
+    public void startListening(String languageCode) {
+        if (speechRecognizer == null) {
+            Log.e(TAG, "SpeechRecognizer not initialized.");
+            if (listener != null) {
+                listener.onSpeechError("SpeechRecognizer not initialized", -2); // Custom error code
+            }
+            return;
+        }
+        if (isListening) {
+            Log.w(TAG, "Already listening, ignoring startListening call.");
+            return;
+        }
+
+        Intent recognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageCode);
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, languageCode);
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true); // Enable partial results
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.getPackageName());
+        // Additional flags might be useful, e.g., PREFER_OFFLINE if desired and available
+        // recognizerIntent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true);
+
+        try {
+            speechRecognizer.startListening(recognizerIntent);
+            isListening = true;
+            Log.d(TAG, "Started listening for language: " + languageCode);
+        } catch (SecurityException e) {
+            Log.e(TAG, "SecurityException starting listening: " + e.getMessage());
+            if (listener != null) {
+                listener.onSpeechError("Permission denied for speech recognition.", SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS);
+            }
+        }
+    }
+    
+    public void stopListening() {
+        if (speechRecognizer != null && isListening) {
+            speechRecognizer.stopListening();
+            isListening = false;
+            Log.d(TAG, "Stopped listening.");
+        } else {
+            Log.d(TAG, "Not listening or recognizer null, no action for stopListening.");
+        }
+    }
+    
+    public void release() {
+        if (speechRecognizer != null) {
+            speechRecognizer.destroy();
+            speechRecognizer = null;
+            Log.d(TAG, "SpeechRecognizer released.");
+        }
+        context = null; // Release context
+        listener = null; // Release listener
+    }
+    
+    public boolean isListening() {
+        return isListening;
+    }
+    
+    private class VoiceRecognitionListener implements RecognitionListener {
+        @Override
+        public void onReadyForSpeech(Bundle params) {
+            Log.d(TAG, "onReadyForSpeech");
+            if (listener != null) {
+                listener.onReadyForSpeech();
+            }
+        }
+        
+        @Override
+        public void onBeginningOfSpeech() {
+            Log.d(TAG, "onBeginningOfSpeech");
+            // Listener doesn't have a direct callback for this, could be added if needed.
+        }
+        
+        @Override
+        public void onRmsChanged(float rmsdB) {
+            // Listener doesn't have a direct callback for this.
+        }
+        
+        @Override
+        public void onBufferReceived(byte[] buffer) {
+            // Listener doesn't have a direct callback for this.
+        }
+        
+        @Override
+        public void onEndOfSpeech() {
+            Log.d(TAG, "onEndOfSpeech");
+            isListening = false; // Mark as not actively listening once speech ends
+            if (listener != null) {
+                listener.onEndOfSpeech();
+            }
+        }
+        
+        @Override
+        public void onError(int error) {
+            String errorMessage = getErrorText(error);
+            Log.e(TAG, "onError: " + errorMessage + " (code: " + error + ")");
+            isListening = false; // Stop listening on error
+            if (listener != null) {
+                listener.onSpeechError(errorMessage, error);
+            }
+        }
+        
+        @Override
+        public void onResults(Bundle results) {
+            ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+            if (matches != null && !matches.isEmpty()) {
+                String text = matches.get(0);
+                Log.d(TAG, "onResults: " + text);
+                if (listener != null) {
+                    listener.onSpeechResult(text);
+                }
+            } else {
+                Log.d(TAG, "onResults: No matches found.");
+                 // If partial results are not enabled, this might be the only time results come.
+                 // If no final match, it could be an implicit error or "no match".
+                 // For robust handling, consider if this should also trigger onSpeechError or a specific "no match" callback.
+            }
+            // isListening = false; // Typically, stop listening after final results.
+            // However, some implementations might want continuous listening until explicitly stopped.
+            // For now, onEndOfSpeech handles isListening = false.
+        }
+        
+        @Override
+        public void onPartialResults(Bundle partialResults) {
+            ArrayList<String> matches = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+            if (matches != null && !matches.isEmpty()) {
+                String text = matches.get(0);
+                Log.d(TAG, "onPartialResults: " + text);
+                // For MVP, we primarily care about final results for transcription display.
+                // If live update of partial results is needed for the notification,
+                // the listener interface would need an onPartialSpeechResult callback.
+                // For now, we will send partial results through the main onSpeechResult.
+                 if (listener != null) {
+                    listener.onSpeechResult(text);
+                }
+            }
+        }
+        
+        @Override
+        public void onEvent(int eventType, Bundle params) {
+            Log.d(TAG, "onEvent: " + eventType);
+        }
+        
+        private String getErrorText(int errorCode) {
+            String message;
+            switch (errorCode) {
+                case SpeechRecognizer.ERROR_AUDIO:
+                    message = "Audio recording error";
+                    break;
+                case SpeechRecognizer.ERROR_CLIENT:
+                    message = "Client side error";
+                    break;
+                case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS:
+                    message = "Insufficient permissions";
+                    break;
+                case SpeechRecognizer.ERROR_NETWORK:
+                    message = "Network error";
+                    break;
+                case SpeechRecognizer.ERROR_NETWORK_TIMEOUT:
+                    message = "Network timeout";
+                    break;
+                case SpeechRecognizer.ERROR_NO_MATCH:
+                    message = "No match";
+                    break;
+                case SpeechRecognizer.ERROR_RECOGNIZER_BUSY:
+                    message = "RecognitionService busy";
+                    break;
+                case SpeechRecognizer.ERROR_SERVER:
+                    message = "error from server";
+                    break;
+                case SpeechRecognizer.ERROR_SPEECH_TIMEOUT:
+                    message = "No speech input";
+                    break;
+                default:
+                    message = "Didn't understand, please try again.";
+                    break;
+            }
+            return message;
+        }
     }
 } 
