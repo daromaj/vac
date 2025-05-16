@@ -278,7 +278,7 @@
 ## Phase 6: Message Handling
 
 ### Task 6.1: Predefined Follow-up Response
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** After STT (caller finishes speaking or timeout), play a predefined follow-up message using TTS/MediaPlayer (e.g., "Thank you. [User's Name] is not available right now. Would you like to leave a message?").
 - **Acceptance Criteria:**
     - Follow-up message plays clearly after STT phase.

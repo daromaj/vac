@@ -27,8 +27,6 @@ import java.util.UUID;
  */
 public class AudioHandler {
     private static final String TAG = "AudioHandler";
-    private static final String UTTERANCE_ID_GREETING = "greeting";
-    private static final String UTTERANCE_ID_FOLLOW_UP = "follow_up";
     private static final String UTTERANCE_ID_GENERIC = "generic";
     private static final String UTTERANCE_PREFIX_SYNTHESIS = "synthesis_";
     
@@ -52,6 +50,8 @@ public class AudioHandler {
     TextToSpeech tts; // Package-private for test access
     private MediaPlayer mediaPlayer;
     private AudioFocusRequest audioFocusRequest;
+    static final String UTTERANCE_ID_GREETING = "utterance_greeting";
+    static final String UTTERANCE_ID_FOLLOW_UP = "utterance_follow_up";
     private boolean isPlayingAudio = false;
     
     /**
