@@ -16,7 +16,7 @@
     - N/A (Project setup verification)
 
 ### Task 1.2: Setup Screen UI & Logic
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** Implement the UI for the Setup screen. This screen will allow users to input their name for the greeting and optionally customize the greeting text. It will also be the central point for permission requests and language pack checks.
 - **Acceptance Criteria:**
     - UI contains input fields for user's name and greeting text.

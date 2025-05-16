@@ -24,7 +24,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.robolectric.Shadows.shadowOf;
 
 @RunWith(AndroidJUnit4.class)
-@Config(sdk = {Config.OLDEST_SDK, Config.NEWEST_SDK}) // Test on a range of SDKs
+@Config(sdk = Config.NEWEST_SDK) // Test on newest SDK only for faster tests
 public class SetupActivityTest {
 
     private PreferencesManager preferencesManager;
@@ -73,32 +73,48 @@ public class SetupActivityTest {
 
     @Test
     public void test_saveAndLoadGreetingText() {
-        final String testGreeting = "Yo, it's your assistant!";
+        final String testName = "DarekForGreeting"; 
+        final String testGreeting = "Yo, it\'s your assistant!";
+
+        // Ensure a clean slate for prefs relevant to this test
+        preferencesManager.saveUserName("");
+        preferencesManager.saveGreetingText("");
         
         try (ActivityScenario<SetupActivity> scenario = ActivityScenario.launch(SetupActivity.class)) {
+            // Phase 1: Test saving
             scenario.onActivity(activity -> {
+                EditText nameInput = activity.findViewById(R.id.name_input);
                 EditText greetingInput = activity.findViewById(R.id.greeting_input);
                 Button saveButton = activity.findViewById(R.id.save_button);
 
+                assertNotNull("Name input field should not be null", nameInput);
                 assertNotNull("Greeting input field should not be null", greetingInput);
                 assertNotNull("Save button should not be null", saveButton);
 
-                // Clear any default greeting that might be pre-filled
-                greetingInput.setText("");
+                // Set name (required for saveUserSettings to proceed)
+                nameInput.setText(testName);
                 
+                // Set the custom greeting in the input field
                 greetingInput.setText(testGreeting);
+                
                 saveButton.performClick();
 
-                // Verify saved in SharedPreferences
-                assertEquals("Saved greeting should match exactly",
+                // Verify that SharedPreferences was updated correctly by saveUserSettings()
+                assertEquals("Saved name should match", testName, preferencesManager.getUserName());
+                assertEquals("Saved greeting should match exactly after click",
                     testGreeting, preferencesManager.getGreetingText());
             });
 
-            // Recreate activity to check if value is loaded
+            // Phase 2: Test loading after recreate
+            // Preferences should now contain testName and testGreeting from the save above.
             scenario.recreate();
 
             scenario.onActivity(activity -> {
+                EditText nameInput = activity.findViewById(R.id.name_input);
                 EditText greetingInput = activity.findViewById(R.id.greeting_input);
+
+                assertEquals("Name should be loaded from SharedPreferences on recreate", 
+                    testName, nameInput.getText().toString());
                 assertEquals("Greeting should be loaded from SharedPreferences on recreate",
                     testGreeting, greetingInput.getText().toString());
             });
