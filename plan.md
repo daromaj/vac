@@ -86,7 +86,7 @@
     - Code review for manifest and service structure.
 
 ### Task 3.1.2: Default Call Screening App & `onScreenCall` Invocation
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** Ensure the app can be reliably selected and function as the default Call Screening application. This might involve adding a helper UI in `SetupActivity` (e.g., a button/status text) that directs the user to the system settings to select the app as the default call screener if it isn't already. Verify that `onScreenCall()` in `CallScreeningServiceImpl` is invoked when an incoming call is made while the app is the default screener.
 - **Acceptance Criteria:**
     - App can be selected as the default Call Screening application through Android settings.

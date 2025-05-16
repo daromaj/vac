@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -26,6 +27,14 @@ import com.google.android.material.textfield.TextInputEditText;
 import java.util.List;
 import java.util.Locale;
 
+// Import for RoleManager
+import android.app.role.RoleManager;
+import android.os.Build;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import android.content.Context;
+import androidx.annotation.RequiresApi;
+
 public class SetupActivity extends AppCompatActivity {
     public static final int REQUEST_PERMISSIONS = 100;
     public static final String[] REQUIRED_PERMISSIONS = {
@@ -43,6 +52,12 @@ public class SetupActivity extends AppCompatActivity {
     private Button openVoiceSettingsButton;
     private Button requestPermissionsButton;
     private Button saveButton;
+    // New UI elements for Default Call Screener
+    private TextView defaultScreenerStatusText;
+    private Button setDefaultScreenerButton;
+
+    // ActivityResultLauncher for RoleManager request
+    private ActivityResultLauncher<Intent> roleActivityResultLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,6 +76,9 @@ public class SetupActivity extends AppCompatActivity {
         openVoiceSettingsButton = binding.openVoiceSettingsButton;
         requestPermissionsButton = binding.requestPermissionsButton;
         saveButton = binding.saveButton;
+        // Initialize new UI elements
+        defaultScreenerStatusText = binding.defaultScreenerStatusText;
+        setDefaultScreenerButton = binding.setDefaultScreenerButton;
 
         // Load saved preferences
         loadSavedPreferences();
@@ -69,12 +87,41 @@ public class SetupActivity extends AppCompatActivity {
         saveButton.setOnClickListener(v -> saveUserSettings());
         requestPermissionsButton.setOnClickListener(v -> requestRequiredPermissions());
         openVoiceSettingsButton.setOnClickListener(v -> openVoiceInputSettings());
+        // Set click listener for the new button
+        setDefaultScreenerButton.setOnClickListener(v -> openDefaultCallScreenerSettings());
+
+        // Initialize ActivityResultLauncher for RoleManager
+        // This launcher will handle the result of the role request if we decide to request it directly.
+        // For now, we just open settings, so this might not be strictly needed if we don't auto-request.
+        roleActivityResultLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    // Check status again after returning from settings or role request
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        checkDefaultCallScreenerStatus();
+                    }
+                });
 
         // Check permissions
         updatePermissionStatuses();
 
         // Check Polish language pack
         checkPolishLanguagePack();
+        // Check Default Call Screener Status (only on Q+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            checkDefaultCallScreenerStatus();
+            // Ensure container is visible on Q+ if it was previously hidden by a different logic path (unlikely here but good practice)
+            View screenerSectionContainer = findViewById(R.id.default_screener_section_container);
+            if (screenerSectionContainer != null) {
+                screenerSectionContainer.setVisibility(View.VISIBLE);
+            }
+        } else {
+            // Hide the entire screener settings section on older versions
+            View screenerSectionContainer = findViewById(R.id.default_screener_section_container);
+            if (screenerSectionContainer != null) {
+                screenerSectionContainer.setVisibility(View.GONE);
+            }
+        }
     }
 
     @Override
@@ -83,6 +130,16 @@ public class SetupActivity extends AppCompatActivity {
         // Update permissions status and language pack status on resume
         updatePermissionStatuses();
         checkPolishLanguagePack();
+        // Check Default Call Screener Status on resume (only on Q+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            checkDefaultCallScreenerStatus();
+        } else {
+            // Ensure it stays hidden on resume for pre-Q
+            View screenerSectionContainer = findViewById(R.id.default_screener_section_container);
+            if (screenerSectionContainer != null) {
+                screenerSectionContainer.setVisibility(View.GONE);
+            }
+        }
 
         // Automatically request permissions if not all are granted
         if (!areAllPermissionsGranted()) {
@@ -214,6 +271,47 @@ public class SetupActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_PERMISSIONS) {
             updatePermissionStatuses();
+        }
+    }
+
+    // New methods for Default Call Screener
+    @RequiresApi(api = Build.VERSION_CODES.Q)
+    private void checkDefaultCallScreenerStatus() {
+        RoleManager roleManager = (RoleManager) getSystemService(Context.ROLE_SERVICE);
+        boolean isHeld = roleManager.isRoleHeld(RoleManager.ROLE_CALL_SCREENING);
+
+        if (isHeld) {
+            defaultScreenerStatusText.setText(R.string.screener_is_default);
+            defaultScreenerStatusText.setTextColor(getResources().getColor(android.R.color.holo_green_dark, null));
+            setDefaultScreenerButton.setText(R.string.open_default_screener_settings_button); // Or just "Settings"
+        } else {
+            defaultScreenerStatusText.setText(R.string.screener_is_not_default);
+            defaultScreenerStatusText.setTextColor(getResources().getColor(android.R.color.holo_red_dark, null));
+            setDefaultScreenerButton.setText(R.string.set_default_screener_button);
+        }
+        // The visibility of individual elements inside the container is handled here based on logic.
+        // The container's visibility is handled in onCreate/onResume based on API level.
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.Q)
+    private void openDefaultCallScreenerSettings() {
+        RoleManager roleManager = (RoleManager) getSystemService(Context.ROLE_SERVICE);
+        boolean isCurrentlyDefault = roleManager.isRoleHeld(RoleManager.ROLE_CALL_SCREENING);
+
+        Intent intent;
+        if (isCurrentlyDefault) {
+            // If VAC is already the default, take the user to the general default apps settings page.
+            intent = new Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS);
+        } else {
+            // If VAC is not the default, request the role.
+            intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_CALL_SCREENING);
+        }
+        
+        // Check if the intent can be resolved before launching to prevent crashes
+        if (intent.resolveActivity(getPackageManager()) != null) {
+            roleActivityResultLauncher.launch(intent);
+        } else {
+            Toast.makeText(this, "Could not open settings.", Toast.LENGTH_SHORT).show();
         }
     }
 } 

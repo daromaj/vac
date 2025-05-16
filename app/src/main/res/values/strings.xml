@@ -34,4 +34,12 @@
     <string name="action_sign_in_short">Sign in</string>
     <string name="speech_recognition_not_available">Speech recognition is not available on this device. Please install or enable a speech recognition engine.</string>
     <string name="polish_language_pack_available">Polish language pack (pl-PL) appears to be available.</string>
+
+    <!-- Default Call Screener Settings -->
+    <string name="default_call_screener_title">Default Call Screener</string>
+    <string name="screener_status_label">Status:</string>
+    <string name="screener_is_default">VAC is the default call screener.</string>
+    <string name="screener_is_not_default">VAC is NOT the default call screener.</string>
+    <string name="set_default_screener_button">Set Default Screener App</string>
+    <string name="open_default_screener_settings_button">Open Default Screener Settings</string>
 </resources>
