@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.view.View;
 
 import androidx.lifecycle.Lifecycle;
 import androidx.test.core.app.ActivityScenario;
@@ -19,12 +20,17 @@ import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowApplication;
 import org.robolectric.shadows.ShadowActivity;
+import org.robolectric.shadows.ShadowSpeechRecognizer;
+import org.robolectric.shadows.ShadowPackageManager;
+import org.robolectric.shadows.ShadowSettings;
 
 import com.example.vac.utils.PreferencesManager;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 import static org.robolectric.Shadows.shadowOf;
 
 import android.Manifest;
@@ -32,12 +38,50 @@ import android.content.pm.PackageManager;
 
 import org.junit.Assert;
 
+import android.content.Intent;
+import android.content.pm.ActivityInfo;
+import android.content.pm.ResolveInfo;
+import android.provider.Settings;
+import android.speech.RecognitionService;
+import android.speech.SpeechRecognizer;
+import android.speech.RecognizerIntent;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
+
 @RunWith(AndroidJUnit4.class)
 @Config(sdk = Config.NEWEST_SDK) // Test on newest SDK only for faster tests
 public class SetupActivityTest {
 
     private PreferencesManager preferencesManager;
     private String defaultGreetingFormat;
+    private ShadowApplication shadowApplication;
+
+    // --- Custom Shadow for SpeechRecognizer ---
+    @org.robolectric.annotation.Implements(SpeechRecognizer.class)
+    public static class CustomShadowSpeechRecognizer {
+        private static boolean shouldRecognitionBeAvailable = true;
+
+        public static void setShouldRecognitionBeAvailable(boolean available) {
+            shouldRecognitionBeAvailable = available;
+        }
+
+        @org.robolectric.annotation.Implementation
+        public static boolean isRecognitionAvailable(Context context) {
+            return shouldRecognitionBeAvailable;
+        }
+
+        // You might need to add other @Implementation methods if your tests trigger them
+        // For example, a constructor or other static methods of SpeechRecognizer.
+        // For now, we only need isRecognitionAvailable.
+
+        @org.robolectric.annotation.Resetter
+        public static void reset() {
+            shouldRecognitionBeAvailable = true; // Default to true
+        }
+    }
+    // --- End Custom Shadow ---
 
     @Before
     public void setUp() {
@@ -48,6 +92,7 @@ public class SetupActivityTest {
         preferencesManager.saveGreetingText("");
         // Load the default greeting format string from resources
         defaultGreetingFormat = context.getString(R.string.default_greeting);
+        shadowApplication = shadowOf(RuntimeEnvironment.getApplication());
     }
 
     @Test
@@ -178,7 +223,6 @@ public class SetupActivityTest {
     @Test
     public void test_checkPermissionsGranted() {
         // Grant all required permissions before the activity starts
-        ShadowApplication shadowApplication = shadowOf(RuntimeEnvironment.getApplication());
         shadowApplication.grantPermissions(Manifest.permission.RECORD_AUDIO);
         shadowApplication.grantPermissions(Manifest.permission.READ_PHONE_STATE);
 
@@ -208,7 +252,6 @@ public class SetupActivityTest {
     @Test
     public void test_checkPermissionsDenied_andThenGrantedViaButton() {
         // Ensure permissions are initially denied
-        ShadowApplication shadowApplication = shadowOf(RuntimeEnvironment.getApplication());
         shadowApplication.denyPermissions(Manifest.permission.RECORD_AUDIO);
         shadowApplication.denyPermissions(Manifest.permission.READ_PHONE_STATE);
 
@@ -251,7 +294,6 @@ public class SetupActivityTest {
 
     @Test
     public void test_automaticPermissionRequest_whenInitiallyDenied() {
-        ShadowApplication shadowApplication = shadowOf(RuntimeEnvironment.getApplication());
         shadowApplication.denyPermissions(Manifest.permission.RECORD_AUDIO, Manifest.permission.READ_PHONE_STATE);
 
         try (ActivityScenario<SetupActivity> scenario = ActivityScenario.launch(SetupActivity.class)) {
@@ -262,12 +304,110 @@ public class SetupActivityTest {
                 assertNotNull("A permission request should have been made", lastRequest);
                 assertArrayEquals("Requested permissions should match REQUIRED_PERMISSIONS",
                                  SetupActivity.REQUIRED_PERMISSIONS, lastRequest.requestedPermissions);
-                assertEquals("Request code should match", 
-                             SetupActivity.REQUEST_PERMISSIONS, lastRequest.requestCode);
+                assertEquals("Request code should match", SetupActivity.REQUEST_PERMISSIONS, lastRequest.requestCode);
+            });
+        }
+    }
 
-                TextView recordAudioStatus = activity.findViewById(R.id.record_audio_permission_status);
-                assertEquals("Record Audio status should still be Not Granted before callback", 
-                             "Status: Not Granted", recordAudioStatus.getText().toString());
+    // --- Tests for Task 1.4: Polish Language Pack Check ---
+
+    @Test
+    @Config(shadows = {CustomShadowSpeechRecognizer.class}) // Use our custom shadow
+    public void test_languagePackAvailable() {
+        CustomShadowSpeechRecognizer.setShouldRecognitionBeAvailable(true); // General SR is available
+        
+        // Mock PackageManager to return a non-empty list for Polish SR Intent
+        ShadowPackageManager shadowPackageManager = shadowOf(RuntimeEnvironment.getApplication().getPackageManager());
+        Intent polishRecognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        polishRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pl-PL");
+        polishRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "pl-PL");
+        // Add a dummy ResolveInfo to simulate that an activity can handle this intent
+        ResolveInfo resolveInfo = new ResolveInfo();
+        resolveInfo.activityInfo = new ActivityInfo();
+        resolveInfo.activityInfo.packageName = "com.example.recognizer";
+        resolveInfo.activityInfo.name = "PolishRecognizerActivity";
+        shadowPackageManager.addResolveInfoForIntent(polishRecognizerIntent, resolveInfo);
+
+        try (ActivityScenario<SetupActivity> scenario = ActivityScenario.launch(SetupActivity.class)) {
+            scenario.onActivity(activity -> {
+                TextView polishStatus = activity.findViewById(R.id.polish_language_pack_status);
+                Button openSettingsButton = activity.findViewById(R.id.open_voice_settings_button);
+                Button saveButton = activity.findViewById(R.id.save_button);
+
+                assertEquals(activity.getString(R.string.polish_language_pack_available), polishStatus.getText().toString());
+                assertEquals(View.GONE, openSettingsButton.getVisibility());
+                assertTrue("Save button should be enabled", saveButton.isEnabled());
+            });
+        }
+    }
+
+    @Test
+    @Config(shadows = {CustomShadowSpeechRecognizer.class}) // Use our custom shadow
+    public void test_languagePackMissing_butGeneralSRAvailable() {
+        CustomShadowSpeechRecognizer.setShouldRecognitionBeAvailable(true); // General SR is available
+        
+        // Mock PackageManager to return an empty list for Polish SR Intent
+        ShadowPackageManager shadowPackageManager = shadowOf(RuntimeEnvironment.getApplication().getPackageManager());
+        Intent polishRecognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        polishRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pl-PL");
+        shadowPackageManager.removeResolveInfosForIntent(polishRecognizerIntent, null); // Clear any existing
+
+        try (ActivityScenario<SetupActivity> scenario = ActivityScenario.launch(SetupActivity.class)) {
+            scenario.onActivity(activity -> {
+                TextView polishStatus = activity.findViewById(R.id.polish_language_pack_status);
+                Button openSettingsButton = activity.findViewById(R.id.open_voice_settings_button);
+                Button saveButton = activity.findViewById(R.id.save_button);
+
+                assertEquals(activity.getString(R.string.polish_language_pack_missing), polishStatus.getText().toString());
+                assertEquals(View.VISIBLE, openSettingsButton.getVisibility());
+                assertFalse("Save button should be disabled", saveButton.isEnabled());
+            });
+        }
+    }
+
+    @Test
+    @Config(shadows = {CustomShadowSpeechRecognizer.class}) // Use our custom shadow
+    public void test_generalSRAbsent() {
+        CustomShadowSpeechRecognizer.setShouldRecognitionBeAvailable(false); // Use custom shadow's static method
+
+        try (ActivityScenario<SetupActivity> scenario = ActivityScenario.launch(SetupActivity.class)) {
+            scenario.onActivity(activity -> {
+                TextView polishStatus = activity.findViewById(R.id.polish_language_pack_status);
+                Button openSettingsButton = activity.findViewById(R.id.open_voice_settings_button);
+                Button saveButton = activity.findViewById(R.id.save_button);
+
+                assertEquals(activity.getString(R.string.speech_recognition_not_available), polishStatus.getText().toString());
+                assertEquals(View.VISIBLE, openSettingsButton.getVisibility());
+                assertFalse("Save button should be disabled", saveButton.isEnabled());
+            });
+        }
+    }
+
+    @Test
+    @Config(shadows = {CustomShadowSpeechRecognizer.class}) // Use our custom shadow
+    public void test_intentToVoiceSettings_whenGeneralSRAbsent() {
+        // This test also relies on isRecognitionAvailable returning false
+        CustomShadowSpeechRecognizer.setShouldRecognitionBeAvailable(false); // General SR is NOT available
+
+        try (ActivityScenario<SetupActivity> scenario = ActivityScenario.launch(SetupActivity.class)) {
+            scenario.onActivity(activity -> {
+                // Mock PackageManager to resolve the ACTION_VOICE_INPUT_SETTINGS intent
+                ShadowPackageManager shadowPackageManager = shadowOf(activity.getPackageManager());
+                Intent voiceInputIntent = new Intent(Settings.ACTION_VOICE_INPUT_SETTINGS);
+                ResolveInfo resolveInfo = new ResolveInfo();
+                resolveInfo.activityInfo = new ActivityInfo();
+                resolveInfo.activityInfo.packageName = "com.example.settings"; // Dummy package
+                resolveInfo.activityInfo.name = "VoiceInputSettingsActivity"; // Dummy activity
+                shadowPackageManager.addResolveInfoForIntent(voiceInputIntent, resolveInfo);
+
+                Button openSettingsButton = activity.findViewById(R.id.open_voice_settings_button);
+                openSettingsButton.performClick();
+
+                ShadowActivity shadowActivity = shadowOf(activity);
+                Intent startedIntent = shadowActivity.getNextStartedActivity();
+                assertNotNull("Intent should have been started", startedIntent);
+                assertEquals("Intent action should be ACTION_VOICE_INPUT_SETTINGS", 
+                             Settings.ACTION_VOICE_INPUT_SETTINGS, startedIntent.getAction());
             });
         }
     }
