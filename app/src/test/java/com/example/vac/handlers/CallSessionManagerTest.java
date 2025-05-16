@@ -49,7 +49,7 @@ public class CallSessionManagerTest {
     @Mock private MessageRecorderHandler mockMessageRecorderHandler;
 
     private CallSessionManager callSessionManager;
-    private String defaultGreetingFormatString = "Hello %1$s, this is your Voice Assistant. How can I help you?"; // From strings.xml
+    private String defaultGreetingFormatString = "Witaj, dodzwoniłeś się do %1$s. Jestem jego wirtualnym asystentem. Uprzedzam, że rozmowa jest nagrywana. Powiedz proszę w jakiej sprawie dzwonisz a ja postaram Ci się pomóc."; // Updated to Polish
 
     @Before
     public void setUp() {

@@ -6,7 +6,7 @@
     <string name="setup_title">Virtual Assistant Setup</string>
     <string name="name_input_hint">Your Name</string>
     <string name="greeting_input_hint">Custom Greeting (optional)</string>
-    <string name="default_greeting">Hello %1$s, this is your Voice Assistant. How can I help you?</string>
+    <string name="default_greeting">Witaj, dodzwoniłeś się do %1$s. Jestem jego wirtualnym asystentem. Uprzedzam, że rozmowa jest nagrywana. Powiedz proszę w jakiej sprawie dzwonisz a ja postaram Ci się pomóc.</string>
     <string name="save_button">Save</string>
     
     <!-- Permissions -->
