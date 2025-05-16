@@ -61,7 +61,7 @@
 ## Phase 2: QA - Setup & Initial Configuration
 
 ### Task 2.1: Setup Screen & Permissions Verification
-- [ ] **Owner:** QA (USER)
+- [x] **Owner:** QA (USER)
 - **Description:** Verify the Setup screen functionality: user name input, custom greeting input, permission request flow, and Polish language pack detection/guidance.
 - **Acceptance Criteria:**
     - User can input and save their name.
