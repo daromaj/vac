@@ -109,7 +109,7 @@
     - Manual testing: Make an incoming call that triggers screening. Verify the foreground service starts and its notification appears.
 
 ### Task 3.2: Incoming Call Trigger & Assistant Activation
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** Ensure that when an incoming call arrives, the `CallScreeningService` intercepts it and the assistant's workflow begins. This includes the "Answer with Assistant" functionality.
 - **Acceptance Criteria:**
     - Incoming calls correctly trigger the `CallScreeningService`.

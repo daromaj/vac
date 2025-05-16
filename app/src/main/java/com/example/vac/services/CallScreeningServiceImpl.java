@@ -41,10 +41,17 @@ public class CallScreeningServiceImpl extends CallScreeningService {
      */
     @Override
     public void onScreenCall(@NonNull Call.Details callDetails) {
-        Log.i(TAG, "onScreenCall for: " + callDetails.getHandle() + " (Task 3.1.1 Stub)");
-        CallResponse response = new CallResponse.Builder().build();
+        Log.i(TAG, "onScreenCall for: " + callDetails.getHandle() + " (Task 3.2)");
+
+        // Respond to the call to take control for the assistant
+        CallResponse response = new CallResponse.Builder()
+                .setDisallowCall(true) // Prevent the call from going to the default dialer
+                .setRejectCall(true)   // Silently reject the call (from user's perspective)
+                .setSkipCallLog(true)  // Don't add to call log as a missed call
+                .setSkipNotification(true) // Don't show a system notification for a missed call
+                .build();
         respondToCall(callDetails, response);
-        Log.i(TAG, "Responded to call - allowing (Task 3.1.1 Stub)");
+        Log.i(TAG, "Responded to call - assistant taking control (Task 3.2)");
 
         // Start foreground service with a notification
         Notification notification = buildNotification("Screening call...");
