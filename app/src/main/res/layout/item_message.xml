@@ -38,14 +38,14 @@
                 android:id="@+id/btn_play"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Play" />
+                android:text="@string/btn_play" />
 
             <Button
                 android:id="@+id/btn_delete"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:text="Delete" />
+                android:text="@string/btn_delete" />
         </LinearLayout>
     </LinearLayout>
 </androidx.cardview.widget.CardView> 

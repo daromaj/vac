@@ -304,7 +304,7 @@
     - `test_recordingStopsWhenCallEndsPostTakeOver()`.
 
 ### Task 6.3: Basic Message Playback UI
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** Implement a very basic UI (e.g., a list in an Activity) for the user to see and playback recorded messages.
 - **Acceptance Criteria:**
     - User can see a list of recorded messages (e.g., by timestamp/filename).

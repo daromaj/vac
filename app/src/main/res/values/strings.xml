@@ -70,4 +70,7 @@
     <string name="notification_responding">Processing your response...</string>
     <string name="llm_placeholder_response">Dziękuję za informację. Przekażę właścicielowi telefonu.</string>
     <string name="greeting_format_with_name">%1$s, %2$s</string>
+    
+    <!-- Menu items -->
+    <string name="menu_view_messages">View Messages</string>
 </resources>

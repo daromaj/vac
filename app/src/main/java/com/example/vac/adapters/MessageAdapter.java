@@ -4,7 +4,7 @@ import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageButton;
+import android.widget.Button;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -39,22 +39,20 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     @Override
     public void onBindViewHolder(@NonNull MessageViewHolder holder, int position) {
         Message message = messageList.get(position);
-        //TODO: Implement when item_message.xml IDs are defined (Task 6.3)
-        // holder.textViewMessageName.setText(message.getFilename()); // Or a more friendly name
+        holder.textViewMessageDate.setText(message.getFormattedDate());
+        holder.textViewMessageFilename.setText(message.getFilename());
 
-        // holder.buttonPlay.setOnClickListener(v -> {
-        //     if (listener != null) {
-        //         listener.onPlayMessage(message);
-        //     }
-        // });
-        // holder.buttonDelete.setOnClickListener(v -> {
-        //     if (listener != null) {
-        //         listener.onDeleteMessage(message);
-        //     }
-        // });
-        if (true) { // Condition to ensure method is not empty if all above is commented
-             throw new UnsupportedOperationException("onBindViewHolder not fully implemented - Task 6.3 pending. item_message.xml needs IDs.");
-        }
+        holder.buttonPlay.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onPlayMessage(message);
+            }
+        });
+        
+        holder.buttonDelete.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onDeleteMessage(message);
+            }
+        });
     }
 
     @Override
@@ -63,20 +61,17 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     }
 
     static class MessageViewHolder extends RecyclerView.ViewHolder {
-        TextView textViewMessageName;
-        ImageButton buttonPlay;
-        ImageButton buttonDelete;
+        TextView textViewMessageDate;
+        TextView textViewMessageFilename;
+        Button buttonPlay;
+        Button buttonDelete;
 
         MessageViewHolder(View itemView) {
             super(itemView);
-            //TODO: Implement when item_message.xml IDs are defined (Task 6.3)
-            // textViewMessageName = itemView.findViewById(R.id.text_view_message_name);
-            // buttonPlay = itemView.findViewById(R.id.button_play_message);
-            // buttonDelete = itemView.findViewById(R.id.button_delete_message);
-            if (true) { // Condition to ensure constructor is not empty if all above is commented
-                // This is a placeholder to ensure the constructor compiles.
-                // The actual view finding logic depends on Task 6.3 (item_message.xml).
-            }
+            textViewMessageDate = itemView.findViewById(R.id.tv_message_date);
+            textViewMessageFilename = itemView.findViewById(R.id.tv_message_filename);
+            buttonPlay = itemView.findViewById(R.id.btn_play);
+            buttonDelete = itemView.findViewById(R.id.btn_delete);
         }
     }
 } 

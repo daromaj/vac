@@ -33,6 +33,11 @@
             </intent-filter>
         </activity>
         
+        <!-- Messages Activity for viewing recorded messages -->
+        <activity
+            android:name=".activities.MessagesActivity"
+            android:exported="false" />
+        
         <!-- Call Screening Service implementation -->
         <service
             android:name=".services.CallScreeningServiceImpl"
