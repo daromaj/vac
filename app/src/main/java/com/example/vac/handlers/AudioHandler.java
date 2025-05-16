@@ -278,30 +278,32 @@ public class AudioHandler {
      * @param audioUri The URI of the audio file to play
      */
     public void playAudioFile(Uri audioUri) {
-        if (isPlayingAudio) {
-            stopPlayback();
+        if (audioUri == null) {
+            try { Log.e(TAG, "playAudioFile: audioUri is null."); } catch (Throwable t) {}
+            if (listener != null) listener.onPlaybackError("Audio URI is null.");
+            return;
         }
-        
-        try {
-            // Set up MediaPlayer
+        if (isPlayingAudio) {
+            try { Log.w(TAG, "playAudioFile called while already playing audio."); } catch (Throwable t) {}
+            stopPlayback(); // Stop any current playback
+        }
+
+        try { Log.i(TAG, "Attempting to play audio file: " + audioUri.toString()); } catch (Throwable t) {}
+        if (requestAudioFocus()) {
             mediaPlayer = new MediaPlayer();
-            mediaPlayer.setAudioAttributes(new AudioAttributes.Builder()
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                    .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                    .build());
-            
-            mediaPlayer.setDataSource(context, audioUri);
+
+            AudioAttributes audioAttributes = new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH) // Suitable for spoken greetings
+                .build();
+            mediaPlayer.setAudioAttributes(audioAttributes);
+
             mediaPlayer.setOnPreparedListener(mp -> {
-                if (requestAudioFocus()) {
-                    isPlayingAudio = true;
-                    mp.start();
-                    if (listener != null) {
-                        listener.onPlaybackStarted();
-                    }
-                } else {
-                    if (listener != null) {
-                        listener.onPlaybackError("Failed to get audio focus for audio file");
-                    }
+                try { Log.d(TAG, "MediaPlayer prepared, starting playback."); } catch (Throwable t) {}
+                isPlayingAudio = true;
+                mp.start();
+                if (listener != null) {
+                    listener.onPlaybackStarted();
                 }
             });
             
@@ -323,10 +325,10 @@ public class AudioHandler {
             });
             
             mediaPlayer.prepareAsync();
-        } catch (IOException e) {
-            try { Log.e(TAG, "Error setting up MediaPlayer", e); } catch (Throwable t) {}
+        } else {
+             try { Log.e(TAG, "Failed to get audio focus for audio file."); } catch (Throwable t) {}
             if (listener != null) {
-                listener.onPlaybackError("Error setting up MediaPlayer: " + e.getMessage());
+                listener.onPlaybackError("Failed to get audio focus for audio file");
             }
         }
     }
