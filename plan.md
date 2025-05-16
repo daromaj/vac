@@ -44,7 +44,7 @@
     - (UI tests would be better here, but for unit tests, focus on the logic that checks status).
 
 ### Task 1.4: Polish Language Pack Check
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** On the Setup screen, implement logic to check if the Polish (`pl-PL`) offline speech recognition model is available. If not, guide the user to Android's voice input settings.
 - **Acceptance Criteria:**
     - App correctly detects if `pl-PL` STT model is available.
