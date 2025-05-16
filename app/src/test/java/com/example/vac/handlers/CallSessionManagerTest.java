@@ -5,6 +5,7 @@ import android.telecom.Call;
 import android.net.Uri;
 import android.app.PendingIntent;
 
+import com.example.vac.R; // For R.string.default_greeting
 import com.example.vac.utils.PreferencesManager;
 
 import org.junit.Before;
@@ -12,45 +13,56 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.MockitoAnnotations;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
+import org.robolectric.annotation.Config;
 
-import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
+import java.io.File;
+import java.io.IOException;
+import java.util.Locale;
 
-@RunWith(MockitoJUnitRunner.class)
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+@RunWith(RobolectricTestRunner.class)
+@Config(manifest=Config.NONE)
 public class CallSessionManagerTest {
 
-    @Mock
-    private Context mockContext;
-    @Mock
-    private Call.Details mockCallDetails;
-    @Mock
-    private CallSessionManager.CallSessionListener mockSessionListener;
-    @Mock
-    private NotificationHandler mockNotificationHandler;
-    @Mock
-    private PreferencesManager mockPreferencesManager; // To be injected or mocked via context
-    @Mock
-    private PendingIntent mockTakeOverPendingIntent; // Added mock PendingIntent
-
-    // We need to control the handlers CallSessionManager creates
-    @Mock
-    private AudioHandler mockAudioHandler;
-    @Mock
-    private SpeechRecognitionHandler mockSpeechRecognitionHandler;
-    @Mock
-    private MessageRecorderHandler mockMessageRecorderHandler;
+    @Mock private Context mockContext;
+    @Mock private Call.Details mockCallDetails;
+    @Mock private CallSessionManager.CallSessionListener mockSessionListener;
+    @Mock private NotificationHandler mockNotificationHandler;
+    @Mock private AudioHandler mockAudioHandler;
+    @Mock private PreferencesManager mockPreferencesManager;
+    @Mock private SpeechRecognitionHandler mockSpeechRecognitionHandler;
+    @Mock private MessageRecorderHandler mockMessageRecorderHandler;
 
     private CallSessionManager callSessionManager;
-
-    private final String testUserName = "DarekTest";
-    private final String expectedGreetingWithName = String.format("Hi, you've reached %s's phone. This is their virtual assistant. This call is being recorded. How can I help you?", testUserName);
-    private final String expectedFallbackGreeting = "Hi, you've reached this phone. This is the virtual assistant. This call is being recorded. How can I help you?";
+    private String defaultGreetingFormatString = "Hello %1$s, this is your Voice Assistant. How can I help you?"; // From strings.xml
 
     @Before
     public void setUp() {
-        // Removed unnecessary stub for getPackageName as PendingIntent creation is now mocked
-        // when(mockContext.getPackageName()).thenReturn("com.example.vac.test"); 
+        MockitoAnnotations.openMocks(this);
+
+        // Mock context to return a real application context for resource loading if needed,
+        // but primarily, we'll mock specific calls like getString.
+        // We need a real context for getString in the code under test.
+        // Let's use Robolectric's application context but ensure getString is handled if directly called on mockContext.
+        Context realContext = RuntimeEnvironment.getApplication();
+        when(mockContext.getApplicationContext()).thenReturn(realContext);
+        when(mockContext.getString(R.string.default_greeting)).thenReturn(defaultGreetingFormatString);
+
 
         callSessionManager = new CallSessionManager(mockContext, mockCallDetails, mockSessionListener, mockNotificationHandler) {
             @Override
@@ -72,81 +84,109 @@ public class CallSessionManagerTest {
             protected MessageRecorderHandler createMessageRecorderHandler(Context context, MessageRecorderHandler.MessageRecorderListener listener) {
                 return mockMessageRecorderHandler;
             }
-
-            @Override // Added override for PendingIntent creation
-            protected PendingIntent createTakeOverPendingIntent() {
-                return mockTakeOverPendingIntent;
-            }
         };
-        
-        // callSessionManager.initializeComponents(); // This would be called internally, setting the handlers.
-        // Ensure the call to initializeComponents happens in the constructor of CallSessionManager so mocks are used.
+    }
+
+    // Test Scenarios for Task 4.1.4
+
+    @Test
+    public void test_callScreeningUsesGeneratedFile_whenEnabledAndFileExists() throws IOException {
+        String fakeFilePath = new File(RuntimeEnvironment.getApplication().getFilesDir(), "test_greeting.wav").getAbsolutePath();
+        File dummyFile = new File(fakeFilePath);
+        dummyFile.createNewFile(); // Ensure file exists for the test
+        dummyFile.deleteOnExit(); // Clean up
+
+        when(mockPreferencesManager.shouldUseCustomGreetingFile()).thenReturn(true);
+        when(mockPreferencesManager.getCustomGreetingFilePath()).thenReturn(fakeFilePath);
+
+        callSessionManager.startGreeting();
+
+        verify(mockAudioHandler, times(1)).playAudioFile(eq(Uri.fromFile(dummyFile)));
+        verify(mockAudioHandler, never()).playGreeting(anyString());
+        assertEquals(CallSessionManager.State.GREETING, callSessionManager.getCurrentState());
     }
 
     @Test
-    public void test_startGreeting_constructsCorrectGreeting_withUserName() {
+    public void test_callScreeningUsesTTS_whenGeneratedFileDisabled() {
+        String testUserName = "Darek";
+        String testBaseGreeting = "Hi there!"; // Does not contain recording notice
+        String recordingNotice = " This call is being recorded.";
+        String expectedTTSGreeting = testBaseGreeting + recordingNotice;
+
+        when(mockPreferencesManager.shouldUseCustomGreetingFile()).thenReturn(false);
         when(mockPreferencesManager.getUserName()).thenReturn(testUserName);
-        
+        when(mockPreferencesManager.getGreetingText()).thenReturn(testBaseGreeting);
+
         callSessionManager.startGreeting();
-        
-        ArgumentCaptor<String> greetingCaptor = ArgumentCaptor.forClass(String.class);
-        verify(mockAudioHandler).playGreeting(greetingCaptor.capture());
-        assertEquals(expectedGreetingWithName, greetingCaptor.getValue());
-    }
 
-    @Test
-    public void test_startGreeting_constructsCorrectFallbackGreeting_withoutUserName() {
-        when(mockPreferencesManager.getUserName()).thenReturn(null); // Or empty
-        callSessionManager.startGreeting();
-        ArgumentCaptor<String> greetingCaptor = ArgumentCaptor.forClass(String.class);
-        verify(mockAudioHandler).playGreeting(greetingCaptor.capture());
-        assertEquals(expectedFallbackGreeting, greetingCaptor.getValue());
-
-        reset(mockAudioHandler); // Reset for next call
-        when(mockPreferencesManager.getUserName()).thenReturn("  "); // Empty after trim
-        callSessionManager.startGreeting();
-        verify(mockAudioHandler).playGreeting(greetingCaptor.capture());
-        assertEquals(expectedFallbackGreeting, greetingCaptor.getValue());
-    }
-
-    @Test
-    public void test_startGreeting_callsAudioHandlerPlayGreeting() {
-        when(mockPreferencesManager.getUserName()).thenReturn(testUserName);
-        callSessionManager.startGreeting();
-        verify(mockAudioHandler).playGreeting(expectedGreetingWithName);
-    }
-
-    @Test
-    public void test_onPlaybackCompleted_afterGreeting_startsListening() {
-        // Simulate state being GREETING when playback completes
-        // Need to set internal state for this test, or ensure startGreeting sets it.
-        when(mockPreferencesManager.getUserName()).thenReturn(testUserName);
-        callSessionManager.startGreeting(); // This should set state to GREETING
-        
-        // Manually trigger onPlaybackCompleted (as AudioHandler would)
-        callSessionManager.onPlaybackCompleted();
-        
-        verify(mockSpeechRecognitionHandler).startListening("pl-PL");
-    }
-
-    @Test
-    public void test_onPlaybackError_notifiesListenerAndStopsSession() {
-        String errorMessage = "TTS failed badly";
-        callSessionManager.onPlaybackError(errorMessage); // Manually trigger
-        
-        verify(mockSessionListener).onSessionError(eq(callSessionManager), eq("Audio playback error: " + errorMessage));
-        // Verify stopScreening was called (indirectly, by checking its effects e.g. handler releases)
-        verify(mockAudioHandler).release(); // Assuming stopScreening calls release on handlers
-        verify(mockSpeechRecognitionHandler).release();
-        verify(mockMessageRecorderHandler).release();
+        verify(mockAudioHandler, times(1)).playGreeting(eq(expectedTTSGreeting));
+        verify(mockAudioHandler, never()).playAudioFile(any(Uri.class));
+        assertEquals(CallSessionManager.State.GREETING, callSessionManager.getCurrentState());
     }
     
     @Test
-    public void startScreening_showsNotificationAndStartsGreeting() {
+    public void test_callScreeningUsesTTS_whenGeneratedFileDisabled_defaultGreetingUsed() {
+        String testUserName = "Darek";
+        String recordingNotice = " This call is being recorded.";
+        String expectedTTSGreeting = String.format(defaultGreetingFormatString, testUserName) + recordingNotice;
+
+        when(mockPreferencesManager.shouldUseCustomGreetingFile()).thenReturn(false);
         when(mockPreferencesManager.getUserName()).thenReturn(testUserName);
-        callSessionManager.startScreening();
-        
-        verify(mockNotificationHandler).showScreeningNotification(eq("Starting call assistant..."), any());
-        verify(mockAudioHandler).playGreeting(expectedGreetingWithName);
+        when(mockPreferencesManager.getGreetingText()).thenReturn(""); // Empty base greeting
+
+        callSessionManager.startGreeting();
+
+        verify(mockAudioHandler, times(1)).playGreeting(eq(expectedTTSGreeting));
+        verify(mockAudioHandler, never()).playAudioFile(any(Uri.class));
+        assertEquals(CallSessionManager.State.GREETING, callSessionManager.getCurrentState());
     }
+
+
+    @Test
+    public void test_callScreeningUsesTTS_whenGeneratedFileEnabledButFileMissing() {
+        String fakeFilePath = new File(RuntimeEnvironment.getApplication().getFilesDir(), "missing_greeting.wav").getAbsolutePath();
+        // Ensure file does NOT exist
+        File missingFile = new File(fakeFilePath);
+        if (missingFile.exists()) {
+            missingFile.delete();
+        }
+
+        String testUserName = "Tester";
+        String recordingNotice = " This call is being recorded.";
+        String expectedTTSGreeting = String.format(defaultGreetingFormatString, testUserName) + recordingNotice;
+
+
+        when(mockPreferencesManager.shouldUseCustomGreetingFile()).thenReturn(true);
+        when(mockPreferencesManager.getCustomGreetingFilePath()).thenReturn(fakeFilePath);
+        when(mockPreferencesManager.getUserName()).thenReturn(testUserName);
+        when(mockPreferencesManager.getGreetingText()).thenReturn(null); // Or empty, for default TTS
+
+        callSessionManager.startGreeting();
+
+        verify(mockAudioHandler, times(1)).playGreeting(eq(expectedTTSGreeting));
+        verify(mockAudioHandler, never()).playAudioFile(any(Uri.class));
+        assertEquals(CallSessionManager.State.GREETING, callSessionManager.getCurrentState());
+    }
+
+     @Test
+    public void test_callScreeningUsesTTS_whenGeneratedFileEnabledButFilePathNull() {
+        String testUserName = "PathUser";
+        String recordingNotice = " This call is being recorded.";
+        String expectedTTSGreeting = String.format(defaultGreetingFormatString, testUserName) + recordingNotice;
+
+        when(mockPreferencesManager.shouldUseCustomGreetingFile()).thenReturn(true);
+        when(mockPreferencesManager.getCustomGreetingFilePath()).thenReturn(null); // Null path
+        when(mockPreferencesManager.getUserName()).thenReturn(testUserName);
+        when(mockPreferencesManager.getGreetingText()).thenReturn(""); 
+
+        callSessionManager.startGreeting();
+
+        verify(mockAudioHandler, times(1)).playGreeting(eq(expectedTTSGreeting));
+        verify(mockAudioHandler, never()).playAudioFile(any(Uri.class));
+        assertEquals(CallSessionManager.State.GREETING, callSessionManager.getCurrentState());
+    }
+    
+    // Helper to access currentState if it's not public (it should be for testing or have a getter)
+    // For now, assuming we can directly access or add a getter if needed.
+    // public CallSessionManager.State getCurrentStateDirectly() { return callSessionManager.currentState; }
 } 

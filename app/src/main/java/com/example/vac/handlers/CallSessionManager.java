@@ -186,52 +186,54 @@ public class CallSessionManager implements
             if (customFilePath != null && !customFilePath.isEmpty()) {
                 greetingFile = new File(customFilePath);
                 if (!greetingFile.exists() || !greetingFile.canRead()) {
-                    try { Log.w(TAG, "Custom greeting file not found or not readable: " + customFilePath); } catch (Throwable t) {}
+                    try { Log.w(TAG, "Custom greeting file not found or not readable: " + customFilePath + ". Falling back to TTS."); } catch (Throwable t) {}
                     greetingFile = null; // Invalidate if not usable
                 }
             } else {
-                 try { Log.w(TAG, "'Use custom file' is true, but no path is stored."); } catch (Throwable t) {}
+                 try { Log.w(TAG, "'Use custom file' is true, but no path is stored. Falling back to TTS."); } catch (Throwable t) {}
+                 // greetingFile is already null here
             }
         }
 
         if (greetingFile != null) {
             // Play the custom greeting file
-            try { Log.d(TAG, "Playing custom greeting file: " + greetingFile.getAbsolutePath()); } catch (Throwable t) {}
+            try { Log.i(TAG, "Playing custom greeting file: " + greetingFile.getAbsolutePath()); } catch (Throwable t) {}
             if (audioHandler != null) {
-                currentState = State.GREETING;
                 audioHandler.playAudioFile(Uri.fromFile(greetingFile));
-            } else {
-                try { Log.e(TAG, "AudioHandler is null, cannot play custom greeting file."); } catch (Throwable t) {}
-                if (listener != null) {
-                    listener.onSessionError(this, "AudioHandler not available for custom greeting file.");
-                }
             }
         } else {
-            // Fallback to live TTS
-            if (useCustomFile && customFilePath != null) {
-                 try { Log.i(TAG, "Falling back to live TTS because custom file was unusable or not found."); } catch (Throwable t) {}
-            } else if (useCustomFile) {
-                 try { Log.i(TAG, "Falling back to live TTS because no custom file path was set, despite preference."); } catch (Throwable t) {}
-            }
-            // Existing TTS logic
+            // Fallback to TTS
+            try { Log.i(TAG, "Falling back to TTS for greeting."); } catch (Throwable t) {}
             String userName = preferencesManager.getUserName();
+            String baseGreetingText = preferencesManager.getGreetingText();
+            String recordingNotice = " This call is being recorded."; // Leading space is important
             String fullGreetingText;
-            if (userName == null || userName.trim().isEmpty()) {
-                fullGreetingText = "Hi, you\'ve reached this phone. This is the virtual assistant. This call is being recorded. How can I help you?";
+
+            if (baseGreetingText != null && !baseGreetingText.trim().isEmpty()) {
+                if (!baseGreetingText.toLowerCase(Locale.ROOT).contains("call is being recorded")) {
+                    fullGreetingText = baseGreetingText + recordingNotice;
+                } else {
+                    fullGreetingText = baseGreetingText;
+                }
             } else {
-                fullGreetingText = String.format(Locale.US, "Hi, you\'ve reached %s\'s phone. This is their virtual assistant. This call is being recorded. How can I help you?", userName);
-            }
-            try { Log.d(TAG, "Constructed live TTS greeting: " + fullGreetingText); } catch (Throwable t) {}
-            if (audioHandler != null) {
-                currentState = State.GREETING;
-                audioHandler.playGreeting(fullGreetingText);
-            } else {
-                try { Log.e(TAG, "AudioHandler is null, cannot play live TTS greeting."); } catch (Throwable t) {}
-                if (listener != null) {
-                    listener.onSessionError(this, "AudioHandler not available for live TTS greeting.");
+                String namePart = (userName != null && !userName.isEmpty()) ? userName : "the user";
+                // Assuming R.string.default_greeting needs to be fetched. 
+                // We need context to get string resources. CallSessionManager has it.
+                String defaultGreetingFormat = context.getString(com.example.vac.R.string.default_greeting);
+                String formattedDefault = String.format(defaultGreetingFormat, namePart);
+
+                if (!formattedDefault.toLowerCase(Locale.ROOT).contains("call is being recorded")) {
+                    fullGreetingText = formattedDefault + recordingNotice;
+                } else {
+                    fullGreetingText = formattedDefault;
                 }
             }
+            
+            if (audioHandler != null) {
+                audioHandler.playGreeting(fullGreetingText);
+            }
         }
+        currentState = State.GREETING;
     }
     
     /**
@@ -392,6 +394,11 @@ public class CallSessionManager implements
         try { Log.i(TAG, "Message recording limit reached."); } catch (Throwable t) {}
         notificationHandler.updateNotification("Recording limit reached. Saving message.");
         // MessageRecorderHandler should stop recording automatically and onRecordingStopped will be called.
+    }
+    
+    // Getter for testing purposes
+    public State getCurrentState() {
+        return currentState;
     }
     
     /**
