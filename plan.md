@@ -97,7 +97,7 @@
     - Manual testing: Set app as default, make incoming call, check logs/Toast.
 
 ### Task 3.1.3: Foreground Service Initiation & Basic Notification
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** Within `CallScreeningServiceImpl` (likely triggered from `onScreenCall`), implement the logic to start a foreground service. This service will eventually manage the active call session details. For this task, just focus on starting the service and displaying a *very basic* persistent notification (e.g., "VAC is screening a call"). This requires the `FOREGROUND_SERVICE` permission in the manifest and potentially a more specific foreground service type for Android 10+ (e.g. `phoneCall` for Android Q/10, `mediaPlayback` if using media, or checking for newer types like `microphone` for Android S/12 or `camera` if relevant. For Android 14, `FOREGROUND_SERVICE_PHONE_CALL` or `FOREGROUND_SERVICE_SPECIAL_USE` with appropriate declarations might be needed. We will start with `FOREGROUND_SERVICE` and refine the type as required by Android version compatibility and functionality).
 - **Acceptance Criteria:**
     - A foreground service is started by `CallScreeningServiceImpl` when `onScreenCall` processes a call.

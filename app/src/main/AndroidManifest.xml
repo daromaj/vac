@@ -9,6 +9,7 @@
     <!-- For CallScreeningService -->
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.BIND_SCREENING_SERVICE" />
     
     <application
@@ -36,7 +37,8 @@
         <service
             android:name=".services.CallScreeningServiceImpl"
             android:permission="android.permission.BIND_SCREENING_SERVICE"
-            android:exported="true">
+            android:exported="true"
+            android:foregroundServiceType="phoneCall">
             <intent-filter>
                 <action android:name="android.telecom.CallScreeningService" />
             </intent-filter>
