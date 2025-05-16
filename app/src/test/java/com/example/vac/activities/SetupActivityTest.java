@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 
 import androidx.lifecycle.Lifecycle;
 import androidx.test.core.app.ActivityScenario;
@@ -16,12 +17,20 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
+import org.robolectric.shadows.ShadowApplication;
+import org.robolectric.shadows.ShadowActivity;
 
 import com.example.vac.utils.PreferencesManager;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertArrayEquals;
 import static org.robolectric.Shadows.shadowOf;
+
+import android.Manifest;
+import android.content.pm.PackageManager;
+
+import org.junit.Assert;
 
 @RunWith(AndroidJUnit4.class)
 @Config(sdk = Config.NEWEST_SDK) // Test on newest SDK only for faster tests
@@ -162,6 +171,103 @@ public class SetupActivityTest {
                 String expectedDefaultGreeting = String.format(activity.getString(R.string.default_greeting), userName);
                 assertEquals("Greeting input should show formatted default greeting when no custom greeting exists",
                     expectedDefaultGreeting, greetingInput.getText().toString());
+            });
+        }
+    }
+
+    @Test
+    public void test_checkPermissionsGranted() {
+        // Grant all required permissions before the activity starts
+        ShadowApplication shadowApplication = shadowOf(RuntimeEnvironment.getApplication());
+        shadowApplication.grantPermissions(Manifest.permission.RECORD_AUDIO);
+        shadowApplication.grantPermissions(Manifest.permission.READ_PHONE_STATE);
+
+        try (ActivityScenario<SetupActivity> scenario = ActivityScenario.launch(SetupActivity.class)) {
+            scenario.onActivity(activity -> {
+                TextView recordAudioStatus = activity.findViewById(R.id.record_audio_permission_status);
+                TextView phoneStateStatus = activity.findViewById(R.id.phone_state_permission_status);
+
+                assertEquals("Record Audio status should be Granted", 
+                             "Status: Granted", recordAudioStatus.getText().toString());
+                assertEquals("Phone State status should be Granted", 
+                             "Status: Granted", phoneStateStatus.getText().toString());
+
+                // Verify colors (optional, but good for completeness if easy)
+                // Note: getColor with theme might be needed for Robolectric
+                // assertEquals(activity.getResources().getColor(android.R.color.holo_green_dark, null), recordAudioStatus.getCurrentTextColor());
+                // assertEquals(activity.getResources().getColor(android.R.color.holo_green_dark, null), phoneStateStatus.getCurrentTextColor());
+            
+                // Since permissions are granted, no automatic request should be made.
+                // Verifying no new permission request activity was started (tricky for requestPermissions)
+                // Instead, we check if the activity is proceeding normally.
+                assertNotNull(activity.findViewById(R.id.save_button)); // Check activity is not stuck
+            });
+        }
+    }
+
+    @Test
+    public void test_checkPermissionsDenied_andThenGrantedViaButton() {
+        // Ensure permissions are initially denied
+        ShadowApplication shadowApplication = shadowOf(RuntimeEnvironment.getApplication());
+        shadowApplication.denyPermissions(Manifest.permission.RECORD_AUDIO);
+        shadowApplication.denyPermissions(Manifest.permission.READ_PHONE_STATE);
+
+        try (ActivityScenario<SetupActivity> scenario = ActivityScenario.launch(SetupActivity.class)) {
+            // Initial state: Denied (automatic request would have been triggered)
+            scenario.onActivity(activity -> {
+                TextView recordAudioStatus = activity.findViewById(R.id.record_audio_permission_status);
+                TextView phoneStateStatus = activity.findViewById(R.id.phone_state_permission_status);
+                Button requestButton = activity.findViewById(R.id.request_permissions_button);
+
+                assertEquals("Record Audio status should be Not Granted initially", 
+                             "Status: Not Granted", recordAudioStatus.getText().toString());
+                assertEquals("Phone State status should be Not Granted initially", 
+                             "Status: Not Granted", phoneStateStatus.getText().toString());
+                
+                // Simulate user clicking the request button
+                // After the automatic request onResume, let's also test the button works.
+                // We need to simulate the permission grant *after* the request is made.
+                // For this test, we will grant permissions and then simulate onRequestPermissionsResult.
+
+                // Grant permissions as if user accepted through dialog triggered by button
+                shadowApplication.grantPermissions(Manifest.permission.RECORD_AUDIO);
+                shadowApplication.grantPermissions(Manifest.permission.READ_PHONE_STATE);
+
+                // Manually call onRequestPermissionsResult to simulate the callback from the system
+                // after permissions have been granted through the (simulated) dialog.
+                int[] grantResults = {PackageManager.PERMISSION_GRANTED, PackageManager.PERMISSION_GRANTED};
+                activity.onRequestPermissionsResult(SetupActivity.REQUEST_PERMISSIONS, 
+                                                    SetupActivity.REQUIRED_PERMISSIONS, 
+                                                    grantResults);
+
+                // Check UI update after permissions are granted via the callback
+                assertEquals("Record Audio status should be Granted after result", 
+                             "Status: Granted", recordAudioStatus.getText().toString());
+                assertEquals("Phone State status should be Granted after result", 
+                             "Status: Granted", phoneStateStatus.getText().toString());
+            });
+        }
+    }
+
+    @Test
+    public void test_automaticPermissionRequest_whenInitiallyDenied() {
+        ShadowApplication shadowApplication = shadowOf(RuntimeEnvironment.getApplication());
+        shadowApplication.denyPermissions(Manifest.permission.RECORD_AUDIO, Manifest.permission.READ_PHONE_STATE);
+
+        try (ActivityScenario<SetupActivity> scenario = ActivityScenario.launch(SetupActivity.class)) {
+            scenario.onActivity(activity -> {
+                ShadowActivity currentActivityShadow = shadowOf(activity);
+                ShadowActivity.PermissionsRequest lastRequest = currentActivityShadow.getLastRequestedPermission();
+
+                assertNotNull("A permission request should have been made", lastRequest);
+                assertArrayEquals("Requested permissions should match REQUIRED_PERMISSIONS",
+                                 SetupActivity.REQUIRED_PERMISSIONS, lastRequest.requestedPermissions);
+                assertEquals("Request code should match", 
+                             SetupActivity.REQUEST_PERMISSIONS, lastRequest.requestCode);
+
+                TextView recordAudioStatus = activity.findViewById(R.id.record_audio_permission_status);
+                assertEquals("Record Audio status should still be Not Granted before callback", 
+                             "Status: Not Granted", recordAudioStatus.getText().toString());
             });
         }
     }

@@ -25,8 +25,8 @@ import com.google.android.material.textfield.TextInputEditText;
 import java.util.Locale;
 
 public class SetupActivity extends AppCompatActivity {
-    private static final int REQUEST_PERMISSIONS = 100;
-    private static final String[] REQUIRED_PERMISSIONS = {
+    public static final int REQUEST_PERMISSIONS = 100;
+    public static final String[] REQUIRED_PERMISSIONS = {
             Manifest.permission.RECORD_AUDIO,
             Manifest.permission.READ_PHONE_STATE
     };
@@ -81,6 +81,11 @@ public class SetupActivity extends AppCompatActivity {
         // Update permissions status and language pack status on resume
         updatePermissionStatuses();
         checkPolishLanguagePack();
+
+        // Automatically request permissions if not all are granted
+        if (!areAllPermissionsGranted()) {
+            requestRequiredPermissions();
+        }
     }
 
     private void loadSavedPreferences() {
@@ -117,6 +122,15 @@ public class SetupActivity extends AppCompatActivity {
 
     private void requestRequiredPermissions() {
         ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_PERMISSIONS);
+    }
+
+    private boolean areAllPermissionsGranted() {
+        for (String permission : REQUIRED_PERMISSIONS) {
+            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void updatePermissionStatuses() {

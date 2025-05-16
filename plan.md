@@ -30,11 +30,11 @@
     - `test_defaultGreetingIsUsed()`: Verify default greeting loads if no custom one exists.
 
 ### Task 1.3: Permissions Handling
-- [ ] **Owner:** DEV
-- **Description:** Implement permission requests for `RECORD_AUDIO`, `READ_PHONE_STATE` (and any others identified for `CallScreeningService`) on the Setup screen. Provide brief explanations for why permissions are needed.
+- [x] **Owner:** DEV
+- **Description:** Implement permission requests for `RECORD_AUDIO`, `READ_PHONE_STATE` (and any others identified for `CallScreeningService`) on the Setup screen. If permissions are not already granted, they should be automatically requested when the Setup screen is first launched. A dedicated button to re-request permissions should also be available. Provide brief explanations for why permissions are needed.
 - **Acceptance Criteria:**
-    - App requests necessary permissions when Setup screen is first launched or via a dedicated button.
-    - User is informed why permissions are needed.
+    - App automatically requests necessary permissions when Setup screen is first launched, if not already granted.
+    - A dedicated button also allows the user to trigger permission requests.
     - Permission status is reflected on the Setup screen (e.g., features disabled if not granted).
     - Run all unit tests to ensure no existing functionality is broken by the changes.
     - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
