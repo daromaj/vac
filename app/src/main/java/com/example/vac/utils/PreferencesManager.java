@@ -10,6 +10,7 @@ public class PreferencesManager {
     private static final String PREF_NAME = "VAC_PREFS";
     private static final String KEY_USER_NAME = "user_name";
     private static final String KEY_GREETING_TEXT = "greeting_text";
+    private static final String KEY_CUSTOM_GREETING_FILE_PATH = "custom_greeting_file_path";
     private static final String DEFAULT_USER_NAME = "";
     private static final String DEFAULT_GREETING_TEXT = "";
     
@@ -53,6 +54,34 @@ public class PreferencesManager {
      */
     public String getGreetingText() {
         return preferences.getString(KEY_GREETING_TEXT, DEFAULT_GREETING_TEXT);
+    }
+    
+    /**
+     * Save the file path of the custom generated greeting.
+     *
+     * @param filePath The absolute path to the generated greeting file, or null to clear.
+     */
+    public void setCustomGreetingFilePath(String filePath) {
+        preferences.edit().putString(KEY_CUSTOM_GREETING_FILE_PATH, filePath).apply();
+    }
+    
+    /**
+     * Get the file path of the custom generated greeting.
+     *
+     * @return The absolute path to the greeting file, or null if not set.
+     */
+    public String getCustomGreetingFilePath() {
+        return preferences.getString(KEY_CUSTOM_GREETING_FILE_PATH, null);
+    }
+    
+    /**
+     * Check if a custom greeting file path is stored.
+     *
+     * @return true if a non-empty path is stored, false otherwise.
+     */
+    public boolean hasCustomGreetingFile() {
+        String path = getCustomGreetingFilePath();
+        return path != null && !path.isEmpty();
     }
     
     /**

@@ -21,6 +21,7 @@ import androidx.core.content.ContextCompat;
 
 import com.example.vac.R;
 import com.example.vac.databinding.ActivitySetupBinding;
+import com.example.vac.handlers.AudioHandler;
 import com.example.vac.utils.PreferencesManager;
 import com.google.android.material.textfield.TextInputEditText;
 
@@ -56,6 +57,13 @@ public class SetupActivity extends AppCompatActivity {
     private TextView defaultScreenerStatusText;
     private Button setDefaultScreenerButton;
 
+    // New UI elements for Custom Greeting File
+    private Button generateGreetingFileButton;
+    private Button playGeneratedGreetingButton; // For future use in 4.1.3
+    private TextView customGreetingStatusText;
+
+    private AudioHandler audioHandler;
+
     // ActivityResultLauncher for RoleManager request
     private ActivityResultLauncher<Intent> roleActivityResultLauncher;
 
@@ -66,6 +74,7 @@ public class SetupActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         preferencesManager = new PreferencesManager(this);
+        audioHandler = new AudioHandler(this, null);
 
         // Initialize UI elements
         nameInput = binding.nameInput;
@@ -80,6 +89,18 @@ public class SetupActivity extends AppCompatActivity {
         defaultScreenerStatusText = binding.defaultScreenerStatusText;
         setDefaultScreenerButton = binding.setDefaultScreenerButton;
 
+        // Initialize Custom Greeting File UI elements
+        generateGreetingFileButton = binding.generateGreetingFileButton;
+        playGeneratedGreetingButton = binding.playGeneratedGreetingButton; // Ref for future
+        customGreetingStatusText = binding.customGreetingStatusText;
+        if (preferencesManager.hasCustomGreetingFile()) {
+            String filePath = preferencesManager.getCustomGreetingFilePath();
+            String fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
+            customGreetingStatusText.setText("Status: Using custom file: " + fileName);
+        } else {
+            customGreetingStatusText.setText(getString(R.string.custom_greeting_status_default));
+        }
+
         // Load saved preferences
         loadSavedPreferences();
 
@@ -89,6 +110,7 @@ public class SetupActivity extends AppCompatActivity {
         openVoiceSettingsButton.setOnClickListener(v -> openVoiceInputSettings());
         // Set click listener for the new button
         setDefaultScreenerButton.setOnClickListener(v -> openDefaultCallScreenerSettings());
+        generateGreetingFileButton.setOnClickListener(v -> generateGreetingFile());
 
         // Initialize ActivityResultLauncher for RoleManager
         // This launcher will handle the result of the role request if we decide to request it directly.
@@ -139,6 +161,14 @@ public class SetupActivity extends AppCompatActivity {
             if (screenerSectionContainer != null) {
                 screenerSectionContainer.setVisibility(View.GONE);
             }
+        }
+        // Update custom greeting status text on resume
+        if (preferencesManager.hasCustomGreetingFile()) {
+            String filePath = preferencesManager.getCustomGreetingFilePath();
+            String fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
+            customGreetingStatusText.setText("Status: Using custom file: " + fileName);
+        } else {
+            customGreetingStatusText.setText(getString(R.string.custom_greeting_status_default));
         }
 
         // Automatically request permissions if not all are granted
@@ -312,6 +342,70 @@ public class SetupActivity extends AppCompatActivity {
             roleActivityResultLauncher.launch(intent);
         } else {
             Toast.makeText(this, "Could not open settings.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void generateGreetingFile() {
+        String userName = nameInput.getText() != null ? nameInput.getText().toString().trim() : "";
+        String greetingBase = greetingInput.getText() != null ? greetingInput.getText().toString().trim() : "";
+        String recordingNotice = " This call is being recorded."; // Leading space is important
+        String greetingForFile;
+
+        if (!greetingBase.isEmpty()) {
+            // If user provided base greeting, append recording notice if not already there.
+            // Simple check; could be more robust (e.g., case-insensitive, check for variations).
+            if (!greetingBase.toLowerCase(Locale.ROOT).contains("call is being recorded")) {
+                greetingForFile = greetingBase + recordingNotice;
+            } else {
+                greetingForFile = greetingBase;
+            }
+        } else {
+            // Construct a default greeting if base is empty
+            String namePart = userName.isEmpty() ? "the user" : userName;
+            // Using a slightly different default here for the generated file for clarity, or could match call one.
+            greetingForFile = String.format(Locale.US, "Hello, you have reached %s.%s", namePart, recordingNotice.trim());
+        }
+
+        if (greetingForFile.trim().isEmpty()) {
+            Toast.makeText(this, "Greeting text cannot be empty for generation.", Toast.LENGTH_SHORT).show();
+            customGreetingStatusText.setText("Status: Greeting text empty.");
+            return;
+        }
+
+        final String desiredFileName = "custom_greeting_generated.wav"; // Consistent filename
+        customGreetingStatusText.setText("Status: Generating " + desiredFileName + "...");
+        generateGreetingFileButton.setEnabled(false); // Disable button during generation
+
+        audioHandler.synthesizeGreetingToFile(greetingForFile, desiredFileName,
+                new AudioHandler.SynthesisCallback() {
+                    @Override
+                    public void onSuccess(String filePath) {
+                        runOnUiThread(() -> {
+                            customGreetingStatusText.setText("Status: Generated " + desiredFileName);
+                            preferencesManager.setCustomGreetingFilePath(filePath);
+                            Toast.makeText(SetupActivity.this, "Greeting file generated: " + desiredFileName, Toast.LENGTH_SHORT).show();
+                            generateGreetingFileButton.setEnabled(true);
+                        });
+                    }
+
+                    @Override
+                    public void onError(String errorMessage) {
+                        runOnUiThread(() -> {
+                            customGreetingStatusText.setText("Status: Error - " + errorMessage);
+                            preferencesManager.setCustomGreetingFilePath(null); // Clear path on error
+                            Toast.makeText(SetupActivity.this, "Error generating file: " + errorMessage, Toast.LENGTH_LONG).show();
+                            generateGreetingFileButton.setEnabled(true);
+                        });
+                    }
+                });
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (audioHandler != null) {
+            audioHandler.release();
+            audioHandler = null;
         }
     }
 } 

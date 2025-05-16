@@ -15,9 +15,11 @@ import androidx.annotation.Nullable;
 
 import com.example.vac.R;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Locale;
+import java.util.UUID;
 
 /**
  * Handles audio playback (TTS and pre-recorded files), managing TextToSpeech
@@ -28,10 +30,24 @@ public class AudioHandler {
     private static final String UTTERANCE_ID_GREETING = "greeting";
     private static final String UTTERANCE_ID_FOLLOW_UP = "follow_up";
     private static final String UTTERANCE_ID_GENERIC = "generic";
+    private static final String UTTERANCE_PREFIX_SYNTHESIS = "synthesis_";
     
     private final Context context;
     private final AudioHandlerListener listener;
     private final AudioManager audioManager;
+    
+    // Helper class to store synthesis request details
+    private static class SynthesisRequest {
+        SynthesisCallback callback;
+        String filePath;
+
+        SynthesisRequest(SynthesisCallback callback, String filePath) {
+            this.callback = callback;
+            this.filePath = filePath;
+        }
+    }
+    // Map to hold requests for synthesizeToFile operations
+    private final HashMap<String, SynthesisRequest> synthesisRequests = new HashMap<>();
     
     TextToSpeech tts; // Package-private for test access
     private MediaPlayer mediaPlayer;
@@ -119,37 +135,59 @@ public class AudioHandler {
             this.tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
                 @Override
                 public void onStart(String utteranceId) {
-                    isPlayingAudio = true;
-                    if (AudioHandler.this.listener != null) {
-                        AudioHandler.this.listener.onPlaybackStarted();
+                    if (synthesisRequests.containsKey(utteranceId)) {
+                        try { Log.d(TAG, "TTS synthesis started for utteranceId: " + utteranceId); } catch (Throwable t) {}
+                    } else {
+                        isPlayingAudio = true;
+                        if (AudioHandler.this.listener != null) {
+                            AudioHandler.this.listener.onPlaybackStarted();
+                        }
                     }
                 }
                 
                 @Override
                 public void onDone(String utteranceId) {
-                    isPlayingAudio = false;
-                    releaseAudioFocus();
-                    if (AudioHandler.this.listener != null) {
-                        AudioHandler.this.listener.onPlaybackCompleted();
+                    SynthesisRequest request = synthesisRequests.remove(utteranceId);
+                    if (request != null) {
+                        try { Log.d(TAG, "TTS synthesis onDone for utteranceId: " + utteranceId + ", file: " + request.filePath); } catch (Throwable t) {}
+                        request.callback.onSuccess(request.filePath);
+                    } else {
+                        isPlayingAudio = false;
+                        releaseAudioFocus();
+                        if (AudioHandler.this.listener != null) {
+                            AudioHandler.this.listener.onPlaybackCompleted();
+                        }
                     }
                 }
                 
                 @Override
                 public void onError(String utteranceId) {
-                    isPlayingAudio = false;
-                    releaseAudioFocus();
-                    if (AudioHandler.this.listener != null) {
-                        AudioHandler.this.listener.onPlaybackError("TTS error for utterance: " + utteranceId);
+                    SynthesisRequest request = synthesisRequests.remove(utteranceId);
+                    if (request != null) {
+                        try { Log.e(TAG, "TTS synthesis onError for utteranceId: " + utteranceId); } catch (Throwable t) {}
+                        request.callback.onError("TTS synthesis error for utterance: " + utteranceId);
+                    } else {
+                        isPlayingAudio = false;
+                        releaseAudioFocus();
+                        if (AudioHandler.this.listener != null) {
+                            AudioHandler.this.listener.onPlaybackError("TTS error for utterance: " + utteranceId);
+                        }
                     }
                 }
 
                 @Override
                 public void onError(String utteranceId, int errorCode) {
-                    isPlayingAudio = false;
-                    releaseAudioFocus();
-                    if (AudioHandler.this.listener != null) {
-                        AudioHandler.this.listener.onPlaybackError("TTS error for utterance: " + utteranceId +
-                                                        ", code: " + errorCode);
+                    SynthesisRequest request = synthesisRequests.remove(utteranceId);
+                    if (request != null) {
+                        try { Log.e(TAG, "TTS synthesis onError for utteranceId: " + utteranceId + ", code: " + errorCode); } catch (Throwable t) {}
+                        request.callback.onError("TTS synthesis error for utterance: " + utteranceId + ", code: " + errorCode);
+                    } else {
+                        isPlayingAudio = false;
+                        releaseAudioFocus();
+                        if (AudioHandler.this.listener != null) {
+                            AudioHandler.this.listener.onPlaybackError("TTS error for utterance: " + utteranceId +
+                                                            ", code: " + errorCode);
+                        }
                     }
                 }
             });
@@ -401,5 +439,66 @@ public class AudioHandler {
         void onPlaybackStarted();
         void onPlaybackCompleted();
         void onPlaybackError(String errorMessage);
+    }
+
+    /**
+     * Interface for AudioHandler to communicate synthesis results.
+     */
+    public interface SynthesisCallback {
+        void onSuccess(String filePath);
+        void onError(String errorMessage);
+    }
+
+    /**
+     * Synthesizes the given text to an audio file in the app's private directory.
+     *
+     * @param textToSpeak The text to synthesize.
+     * @param desiredFileName The desired name for the output file (e.g., "custom_greeting.wav").
+     * @param callback      Callback to notify of success (with file path) or failure.
+     */
+    public void synthesizeGreetingToFile(String textToSpeak, String desiredFileName, SynthesisCallback callback) {
+        if (this.tts == null) {
+            try { Log.e(TAG, "synthesizeGreetingToFile: TTS engine not available."); } catch (Throwable t) {}
+            if (callback != null) callback.onError("TTS engine not available for synthesis.");
+            return;
+        }
+        if (textToSpeak == null || textToSpeak.isEmpty()) {
+            try { Log.e(TAG, "synthesizeGreetingToFile: Text to speak is empty."); } catch (Throwable t) {}
+            if (callback != null) callback.onError("Text to speak is empty.");
+            return;
+        }
+        if (desiredFileName == null || desiredFileName.isEmpty()) {
+            try { Log.e(TAG, "synthesizeGreetingToFile: Desired filename is empty."); } catch (Throwable t) {}
+            if (callback != null) callback.onError("Desired filename is empty.");
+            return;
+        }
+
+        File outputDir = context.getFilesDir();
+        if (outputDir == null) {
+            try { Log.e(TAG, "synthesizeGreetingToFile: App files directory is null."); } catch (Throwable t) {}
+            if (callback != null) callback.onError("App files directory is unavailable.");
+            return;
+        }
+        
+        File outputFile = new File(outputDir, desiredFileName);
+        String utteranceId = UTTERANCE_PREFIX_SYNTHESIS + UUID.randomUUID().toString();
+
+        // Store the callback and file path before starting synthesis
+        synthesisRequests.put(utteranceId, new SynthesisRequest(callback, outputFile.getAbsolutePath()));
+
+        try {
+            Log.i(TAG, "Attempting to synthesize to file: " + outputFile.getAbsolutePath() + " with utteranceId: " + utteranceId); }
+        catch (Throwable t) {}
+
+        int result = tts.synthesizeToFile(textToSpeak, null, outputFile, utteranceId);
+        
+        if (result == TextToSpeech.ERROR) {
+            try { Log.e(TAG, "TTS synthesizeToFile failed immediately for utteranceId: " + utteranceId); } catch (Throwable t) {}
+            synthesisRequests.remove(utteranceId); // Clean up map
+            if (callback != null) callback.onError("TTS synthesizeToFile failed immediately.");
+        } else {
+            // Success or pending, UtteranceProgressListener will handle onDone/onError for this utteranceId
+            try { Log.d(TAG, "TTS synthesizeToFile call successful (pending completion) for utteranceId: " + utteranceId); } catch (Throwable t) {}
+        }
     }
 } 

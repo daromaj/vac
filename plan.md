@@ -162,7 +162,7 @@
     - (No specific unit tests for non-functional UI elements, but existing tests should not break).
 
 #### Task 4.1.2: Implement "Generate Greeting File" Logic
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** Implement the functionality for the "Generate Greeting File" button in `SetupActivity`. This involves:
     - Retrieving the current user name and base greeting text (respecting defaults or user customizations for live TTS).
     - Constructing the full greeting string (including "This call is being recorded").
