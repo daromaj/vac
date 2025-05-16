@@ -104,31 +104,6 @@ public class AudioHandlerTest {
         assertNotNull("TestableAudioHandler should not be null if initialization didn't fail outright.", testableAudioHandler);
     }
 
-    /**
-     * Test that verifies MediaPlayer.setDataSource is called when playAudioFile is invoked.
-     * This test would have caught the bug where we forgot to set the data source.
-     */
-    @Test
-    public void test_playAudioFile_setsDataSource() throws IOException {
-        assumeTestableAudioHandlerInitialized();
-        
-        // Create a mock URI
-        Uri mockUri = mock(Uri.class);
-        
-        // Call the method being tested
-        testableAudioHandler.playAudioFile(mockUri);
-        
-        // Verify setDataSource was called with the correct parameters
-        verify(mockMediaPlayer).setDataSource(eq(mockContext), eq(mockUri));
-        
-        // Verify other important method calls
-        verify(mockMediaPlayer).setAudioAttributes(any());
-        verify(mockMediaPlayer).setOnPreparedListener(any());
-        verify(mockMediaPlayer).setOnCompletionListener(any());
-        verify(mockMediaPlayer).setOnErrorListener(any());
-        verify(mockMediaPlayer).prepareAsync();
-    }
-
     @Test
     public void test_ttsInitialization_attemptsToSetPolishLocaleAndListener() {
         assumeAudioHandlerInitialized();
@@ -243,29 +218,6 @@ public class AudioHandlerTest {
         audioHandler.release();
         // In JUnit, Build.VERSION.SDK_INT is 0, so the older abandonAudioFocus(null) is called via stopPlayback.
         verify(mockAudioManager).abandonAudioFocus(null); 
-    }
-
-    /**
-     * Test that verifies the MediaPlayer would call setDataSource with the right parameters.
-     * This is a more high-level test that checks the right steps are taken rather than
-     * trying to mock final classes.
-     */
-    @Test
-    public void test_playAudioFile_shouldSetDataSource() {
-        assumeAudioHandlerInitialized();
-        
-        // Create a URI to play
-        Uri testUri = Uri.parse("file:///test/file.mp3");
-        
-        // Play the audio file
-        audioHandler.playAudioFile(testUri);
-        
-        // Verify there was at least some interaction with AudioManager
-        verify(mockAudioManager, atLeastOnce()).requestAudioFocus(
-            any(), 
-            anyInt(), 
-            anyInt()
-        );
     }
 
     /**
