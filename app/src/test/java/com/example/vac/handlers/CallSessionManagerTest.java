@@ -185,4 +185,27 @@ public class CallSessionManagerTest {
     // Helper to access currentState if it's not public (it should be for testing or have a getter)
     // For now, assuming we can directly access or add a getter if needed.
     // public CallSessionManager.State getCurrentStateDirectly() { return callSessionManager.currentState; }
+
+    @Test
+    public void test_afterGreetingPlaybackCompletes_startsListeningForCaller() {
+        // Arrange: Use TTS for greeting for simplicity
+        when(mockPreferencesManager.shouldUseCustomGreetingFile()).thenReturn(false);
+        when(mockPreferencesManager.getUserName()).thenReturn("TestUser");
+        when(mockPreferencesManager.getGreetingText()).thenReturn("Hello");
+
+        // Act 1: Start the greeting
+        callSessionManager.startGreeting();
+        assertEquals("State should be GREETING after starting greeting", 
+                     CallSessionManager.State.GREETING, callSessionManager.getCurrentState());
+        verify(mockAudioHandler).playGreeting(anyString()); // Verify greeting started
+
+        // Act 2: Simulate audio playback completion
+        callSessionManager.onPlaybackCompleted();
+
+        // Assert
+        verify(mockSpeechRecognitionHandler, times(1)).startListening(eq("pl-PL"));
+        assertEquals("State should be LISTENING after greeting playback completes", 
+                     CallSessionManager.State.LISTENING, callSessionManager.getCurrentState());
+        verify(mockNotificationHandler, times(1)).updateNotification(eq("Listening to caller..."));
+    }
 } 

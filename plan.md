@@ -214,7 +214,7 @@
 ## Phase 5: Speech-to-Text (STT) & Caller Interaction
 
 ### Task 5.1: `SpeechRecognizer` Integration (via `SpeechRecognitionHandler`)
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** Implement `SpeechRecognitionHandler` as per `design.md`. Initialize and manage `SpeechRecognizer` for `pl-PL` locale to capture the caller's speech after the greeting.
 - **Acceptance Criteria:**
     - `SpeechRecognitionHandler` correctly initializes `SpeechRecognizer`.
