@@ -132,6 +132,10 @@ public class CallSessionManager implements
         // null // No hangup from here initially
         // );
         
+        // Start recording the call immediately
+        startRecordingMessage();
+        
+        // Then start the greeting
         startGreeting();
     }
     
@@ -231,16 +235,26 @@ public class CallSessionManager implements
      * Start listening for the caller's response
      */
     private void startListeningForCaller() {
-        try { Log.i(TAG, "Transitioning to LISTENING state."); } catch (Throwable t) {}
+        if (userHasTakenOver || speechRecognitionHandler == null) {
+            Log.d(TAG, "Cannot start listening: user takeover or null speech handler. UserTakeover: " + userHasTakenOver);
+            return;
+        }
+        if (currentState == State.LISTENING && speechRecognitionHandler.isListening()) {
+            Log.d(TAG, "Already listening, not starting again.");
+            return;
+        }
+
+        Log.d(TAG, "Transitioning to LISTENING state and starting STT.");
         currentState = State.LISTENING;
-        // Update notification to indicate listening, no actions initially
-        notificationHandler.updateNotification(
-            context.getString(R.string.notification_title_screening),
-            "Listening to caller...", 
-            null 
-        );
-        if (speechRecognitionHandler != null) {
-            speechRecognitionHandler.startListening("pl-PL");
+        if (notificationHandler != null && context != null) {
+            notificationHandler.updateNotificationMessage(context.getString(R.string.notification_message_listening));
+        }
+        speechRecognitionHandler.startListening("pl-PL"); // Assuming Polish for now
+
+        // Restart STT silence timeout
+        if (sttTimeoutHandler != null && sttTimeoutRunnable != null) {
+            Log.d(TAG, "Starting STT silence timeout (" + STT_SILENCE_TIMEOUT_MS + "ms).");
+            sttTimeoutHandler.postDelayed(sttTimeoutRunnable, STT_SILENCE_TIMEOUT_MS);
         }
     }
     
@@ -255,9 +269,10 @@ public class CallSessionManager implements
     }
     
     /**
-     * Start recording the caller's message
+     * Start recording the call
+     * Records the entire call from start to finish
      */
-    private void startRecordingMessage() {
+    /* package */ void startRecordingMessage() {
         currentState = State.RECORDING_MESSAGE;
         
         // Generate a filename for the recording
@@ -278,20 +293,27 @@ public class CallSessionManager implements
     @Override
     public void onPlaybackCompleted() {
         Log.d(TAG, "onPlaybackCompleted. Current state: " + currentState);
-        if (currentState == State.GREETING) {
-            Log.d(TAG, "Greeting playback completed. Starting STT.");
-            if (notificationHandler != null) {
-                // Ensure context is available for getString
-                String listeningMessage = (context != null) ? context.getString(R.string.notification_message_listening) : "Listening to caller...";
-                notificationHandler.updateNotificationMessage(listeningMessage);
-            }
-            speechRecognitionHandler.startListening("pl-PL");
-            currentState = State.LISTENING;
-        } else if (currentState == State.RESPONDING) {
-            try { Log.i(TAG, "Follow-up response playback completed. Proceeding to record message."); } catch (Throwable t) {}
-            startRecordingMessage();
-        } else {
-            try { Log.w(TAG, "Playback completed in unexpected state: " + currentState); } catch (Throwable t) {}
+        if (userHasTakenOver) {
+            Log.d(TAG, "User has taken over, not processing playback completion further.");
+            return;
+        }
+
+        switch (currentState) {
+            case GREETING:
+                Log.d(TAG, "Greeting playback completed. Starting STT.");
+                startListeningForCaller(); // Consolidate notification update into startListeningForCaller
+                break;
+            case RESPONDING: // Added case for RESPONDING
+                Log.d(TAG, "Assistant response playback completed. Transitioning back to LISTENING.");
+                startListeningForCaller();
+                break;
+            case RECORDING_MESSAGE:
+                // This case handles completion of "Please leave a message..." prompt
+                Log.d(TAG, "Playback of 'leave message' prompt completed. Already in RECORDING_MESSAGE state.");
+                break;
+            default:
+                Log.w(TAG, "Playback completed in unexpected state: " + currentState);
+                break;
         }
     }
     
@@ -320,15 +342,9 @@ public class CallSessionManager implements
     @Override
     public void onSpeechResult(String transcribedText) {
         try { Log.i(TAG, "Speech recognized: " + transcribedText + " Current state: " + currentState); } catch (Throwable t) {}
-        
-        // If user has taken over, do nothing
+
         if (userHasTakenOver) {
             Log.d(TAG, "User has taken over, ignoring speech result.");
-            return;
-        }
-
-        if (currentState != State.LISTENING) {
-            Log.w(TAG, "Speech result received but not in LISTENING state. Ignoring. State: " + currentState);
             return;
         }
 
@@ -343,6 +359,31 @@ public class CallSessionManager implements
         // Update notification with transcription
         if (listener != null) {
             listener.onTranscriptionUpdate(transcribedText);
+        }
+
+        // If we were not in LISTENING state, it's unexpected, but let's try to recover if speech recognition was somehow active.
+        if (currentState != State.LISTENING) {
+            Log.w(TAG, "Speech result received but not in LISTENING state (current: " + currentState + "). Will attempt to process as if LISTENING.");
+            // Not ideal, but might prevent stalling if SpeechRecognizer calls this unexpectedly.
+        }
+        
+        currentState = State.RESPONDING;
+        Log.d(TAG, "Transitioned to RESPONDING state.");
+        if (notificationHandler != null && context != null) { // Ensure context and handler are available
+            notificationHandler.updateNotificationMessage(context.getString(R.string.notification_responding));
+        }
+
+
+        String llmResponse = generateLlmPlaceholderResponse(transcribedText);
+        if (audioHandler != null) {
+            // Assuming UTTERANCE_ID_ASSISTANT_RESPONSE will be added to AudioHandler
+            // For now, let's use a new distinct ID string or map it to an existing one like follow_up if appropriate.
+            // We'll add AudioHandler.UTTERANCE_ID_ASSISTANT_RESPONSE later.
+            audioHandler.speak(llmResponse, "UTTERANCE_ID_ASSISTANT_RESPONSE", Locale.getDefault().toLanguageTag());
+        } else {
+            Log.e(TAG, "AudioHandler is null, cannot speak LLM response.");
+            // Consider error handling or fallback: maybe go back to listening or play follow-up?
+            // For now, it will stall here if audioHandler is null.
         }
     }
     
@@ -374,13 +415,26 @@ public class CallSessionManager implements
     
     @Override
     public void onSpeechError(String error, int errorCode) {
-        Log.e(TAG, "onSpeechError: " + error + ", code: " + errorCode);
-        sttTimeoutHandler.removeCallbacks(sttTimeoutRunnable);
-        if (currentState == State.LISTENING || currentState == State.INITIALIZING) {
-            audioHandler.playFollowUpResponse();
-            currentState = State.RESPONDING;
+        Log.e(TAG, "onSpeechError: " + error + ", code: " + errorCode + " Current state: " + currentState);
+        if (sttTimeoutHandler != null && sttTimeoutRunnable != null) {
+            sttTimeoutHandler.removeCallbacks(sttTimeoutRunnable); // Stop silence timeout on error
+        }
+
+        if (userHasTakenOver) {
+            Log.d(TAG, "User has taken over, not processing speech error.");
+            return;
+        }
+
+        // Only play follow-up if we were actively listening or just starting.
+        if (currentState == State.LISTENING || currentState == State.INITIALIZING) { // INITIALIZING was a previous state before GREETING
+            Log.i(TAG, "Playing follow-up response due to STT error in LISTENING/INITIALIZING state.");
+            // playFollowUpResponse changes state to RESPONDING internally
+            // Then onPlaybackCompleted for the follow-up will transition to LISTENING.
+            playFollowUpResponse(); 
         } else {
-            Log.w(TAG, "Speech error received but not in a state to play follow-up. Current state: " + currentState);
+            Log.w(TAG, "Speech error received but not in a state to play follow-up. Current state: " + currentState + ". No action taken beyond logging.");
+            // If in RESPONDING, and STT somehow gave an error, this might be problematic.
+            // For now, we don't transition state here unless we were LISTENING.
         }
     }
     
@@ -432,17 +486,9 @@ public class CallSessionManager implements
     
     @Override
     public void onRecordingLimitReached() {
-        try { Log.w(TAG, "Recording time limit reached."); } catch (Throwable t) {}
-        notificationHandler.updateNotification(
-            context.getString(R.string.notification_title_screening),
-            "Recording limit reached. Saving message.", 
-            null
-        );
-        if (messageRecorderHandler != null) {
-            messageRecorderHandler.stopRecording(); // Ensure recording is stopped
-            messageRecorderHandler.release();
-            messageRecorderHandler = null;
-        }
+        // This method is kept for backward compatibility but is no longer used
+        // Recording now continues until the call ends (no time limit)
+        Log.d(TAG, "onRecordingLimitReached called but ignored - recording continues until call ends.");
     }
     
     // Getter for testing purposes
@@ -493,44 +539,75 @@ public class CallSessionManager implements
 
     // Make this public so CallScreeningServiceImpl can call it if a session needs premature release.
     public void releaseInternal(boolean dueToUserTakeover) {
-        try { Log.d(TAG, "Releasing internal resources. Due to user takeover: " + dueToUserTakeover + ". Current state: " + currentState); } catch (Throwable t) {}
+        try { Log.d(TAG, "Releasing internal components. Due to user takeover: " + dueToUserTakeover + ". Current state: " + currentState); } catch (Throwable t) {}
 
-        // Stop any pending STT timeout callbacks
+        // Stop any ongoing TTS
+        if (audioHandler != null) {
+            Log.d(TAG, "Stopping TTS if active.");
+            audioHandler.stopSpeaking();
+        }
+
+        // Stop STT timeout handler
         if (sttTimeoutHandler != null && sttTimeoutRunnable != null) {
+            Log.d(TAG, "Removing STT timeout callbacks.");
             sttTimeoutHandler.removeCallbacks(sttTimeoutRunnable);
-            // sttTimeoutHandler = null; // Don't null if it might be reused, but CallSessionManager is single-use.
-            // sttTimeoutRunnable = null;
         }
 
         // Stop and release AudioHandler
         if (audioHandler != null) {
-            audioHandler.stopPlayback();
-            if (!dueToUserTakeover || currentState == State.USER_TAKEOVER) { // Release fully unless specific conditions
-                audioHandler.release();
-                audioHandler = null;
-            }
+            Log.d(TAG, "Releasing AudioHandler.");
+            audioHandler.release();
+            audioHandler = null;
         }
 
         // Stop and release SpeechRecognitionHandler
         if (speechRecognitionHandler != null) {
-            speechRecognitionHandler.stopListening();
-             if (!dueToUserTakeover || currentState == State.USER_TAKEOVER) { // Release fully
-                speechRecognitionHandler.release();
-                speechRecognitionHandler = null;
-            }
+            speechRecognitionHandler.release();
+            speechRecognitionHandler = null;
         }
 
         // Stop and release MessageRecorderHandler
         if (messageRecorderHandler != null) {
             messageRecorderHandler.stopRecording(); // Ensure recording is stopped
-            if (!dueToUserTakeover || currentState == State.USER_TAKEOVER) { // Release fully
-                 messageRecorderHandler.release();
-                 messageRecorderHandler = null;
-            }
+            messageRecorderHandler.release();
+            messageRecorderHandler = null;
         }
         
         Log.d(TAG, "releaseInternal completed.");
         // Note: context and listener are not nulled here as they are final and passed in.
         // The manager instance itself should be dereferenced by its owner when no longer needed.
+    }
+
+    // Method to generate placeholder LLM response
+    private String generateLlmPlaceholderResponse(String lastTranscribedText) {
+        Log.d(TAG, "LLM Placeholder: Generating response for input: '" + lastTranscribedText + "'");
+        // For MVP, return a hardcoded response.
+        // In the future, this would involve actual LLM interaction.
+        // Make sure to add R.string.llm_placeholder_response to strings.xml
+        // And R.string.notification_responding for the notification
+        return context.getString(R.string.llm_placeholder_response); 
+    }
+
+    protected String getGreetingText() {
+        String userName = preferencesManager.getUserName();
+        String baseGreeting = preferencesManager.getGreetingText();
+        String fullGreeting = baseGreeting;
+        if (userName != null && !userName.isEmpty()) {
+            fullGreeting = context.getString(R.string.greeting_format_with_name, baseGreeting, userName);
+        }
+        
+        // Append recording notice only if not already present (case-insensitive)
+        // And only if actual recording is planned (which it is by default after greeting)
+        String lowerCaseGreeting = fullGreeting.toLowerCase(Locale.ROOT);
+        String lowerCaseNotice = POLISH_RECORDING_NOTICE.toLowerCase(Locale.ROOT); // Assuming notice is in Polish
+        String keyphraseNotice = POLISH_RECORDING_KEYPHRASE.toLowerCase(Locale.ROOT);
+
+
+        if (!lowerCaseGreeting.contains(lowerCaseNotice) && !lowerCaseGreeting.contains(keyphraseNotice)) {
+            fullGreeting += POLISH_RECORDING_NOTICE;
+        }
+        
+        Log.d(TAG, "Final greeting text: " + fullGreeting);
+        return fullGreeting;
     }
 } 

@@ -38,6 +38,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import org.mockito.InOrder;
+import static org.mockito.Mockito.inOrder;
 
 @RunWith(RobolectricTestRunner.class)
 @Config(manifest=Config.NONE, sdk = Config.NEWEST_SDK) // Added SDK for consistency, though might not be strictly needed for these tests
@@ -390,5 +392,66 @@ public class CallSessionManagerTest {
         
         // Assert: Listener notified
         verify(mockSessionListener).onUserTookOver(callSessionManager);
+    }
+
+    @Test
+    public void test_recordingStartsImmediately() {
+        // Create a test implementation that will track method calls but avoid using the real helpers
+        // We need to fix the mocking of PreferencesManager
+        when(mockPreferencesManager.shouldUseCustomGreetingFile()).thenReturn(false);
+        when(mockPreferencesManager.getUserName()).thenReturn("Test User");
+        when(mockPreferencesManager.getGreetingText()).thenReturn("Hello");
+        
+        // Mock the call details
+        when(mockCallDetails.getHandle()).thenReturn(Uri.parse("tel:1234567890"));
+        
+        CallSessionManager testManager = spy(new CallSessionManager(mockContext, mockCallDetails, mockSessionListener, mockNotificationHandler) {
+            @Override
+            protected PreferencesManager createPreferencesManager(Context context) {
+                return mockPreferencesManager;
+            }
+            
+            @Override
+            protected SpeechRecognitionHandler createSpeechRecognitionHandler(Context context, SpeechRecognitionHandler.SpeechRecognitionCallbacks callbacks) {
+                return mockSpeechRecognitionHandler;
+            }
+            
+            @Override
+            protected AudioHandler createAudioHandler(Context context, AudioHandler.AudioHandlerListener listener) {
+                return mockAudioHandler;
+            }
+            
+            @Override
+            protected MessageRecorderHandler createMessageRecorderHandler(Context context, MessageRecorderHandler.MessageRecorderListener listener) {
+                return mockMessageRecorderHandler;
+            }
+        });
+        
+        // Call startScreening
+        testManager.startScreening();
+        
+        // Verify startRecordingMessage is called
+        verify(testManager).startRecordingMessage();
+        
+        // Verify startGreeting is called after recording starts
+        InOrder inOrder = inOrder(testManager);
+        inOrder.verify(testManager).startRecordingMessage();
+        inOrder.verify(testManager).startGreeting();
+    }
+
+    @Test
+    public void test_recordingStopsWhenCallEnds() {
+        // Start call screening which should start recording
+        callSessionManager.startScreening();
+        
+        // Now simulate call ending
+        callSessionManager.stopScreening();
+        
+        // Verify that message recorder is stopped and released
+        verify(mockMessageRecorderHandler).stopRecording();
+        verify(mockMessageRecorderHandler).release();
+        
+        // Verify final state is ENDED
+        assertEquals(CallSessionManager.State.ENDED, callSessionManager.getCurrentState());
     }
 } 

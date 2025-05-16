@@ -501,4 +501,65 @@ public class AudioHandler {
             try { Log.d(TAG, "TTS synthesizeToFile call successful (pending completion) for utteranceId: " + utteranceId); } catch (Throwable t) {}
         }
     }
+
+    /**
+     * Speak the provided text with a specific utterance ID and language
+     * 
+     * @param text The text to speak
+     * @param utteranceId The unique ID for this utterance
+     * @param languageTag The language tag (e.g., "pl-PL")
+     */
+    public void speak(String text, String utteranceId, String languageTag) {
+        if (this.tts == null) {
+            try { Log.e(TAG, "speak: TTS engine not available."); } catch (Throwable t) {}
+            if (listener != null) listener.onPlaybackError("TTS engine not available.");
+            return;
+        }
+        if (text == null || text.isEmpty()) {
+            try { Log.e(TAG, "speak: Text is empty."); } catch (Throwable t) {}
+            if (listener != null) listener.onPlaybackError("Text is empty.");
+            return;
+        }
+        if (isPlayingAudio) {
+             try { Log.w(TAG, "speak called while already playing audio."); } catch (Throwable t) {}
+            stopPlayback();
+        }
+        try { Log.i(TAG, "Attempting to speak: " + text); } catch (Throwable t) {}
+        if (requestAudioFocus()) {
+            HashMap<String, String> params = new HashMap<>();
+            params.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId);
+            
+            // Ensure TTS engine is ready
+            if (tts != null) {
+                try {
+                    tts.speak(text, TextToSpeech.QUEUE_FLUSH, params);
+                } catch (Exception e) {
+                    try { Log.e(TAG, "Exception during tts.speak(): " + e.getMessage()); } catch (Throwable t) {}
+                    if (listener != null) {
+                        listener.onPlaybackError("TTS speak operation failed.");
+                    }
+                    releaseAudioFocus();
+                }
+            } else {
+                try { Log.e(TAG, "TTS engine not available in speak."); } catch (Throwable t) {}
+                if (listener != null) {
+                    listener.onPlaybackError("TTS engine not available.");
+                }
+                releaseAudioFocus();
+            }
+        } else {
+             try { Log.e(TAG, "Failed to get audio focus for speech."); } catch (Throwable t) {}
+            if (listener != null) listener.onPlaybackError("Failed to get audio focus for speech");
+        }
+    }
+    
+    /**
+     * Stop any ongoing TTS playback
+     */
+    public void stopSpeaking() {
+        if (tts != null && tts.isSpeaking()) {
+            try { Log.d(TAG, "Stopping TTS speech"); } catch (Throwable t) {}
+            tts.stop();
+        }
+    }
 } 

@@ -65,4 +65,9 @@
     <string name="notification_message_call_ended">Call has ended.</string>
 
     <string name="follow_up_message_tts">Dziękuję. Upewnię się, że Twoja wiadomość zostanie dostarczona. Proszę zostaw wiadomość po sygnale.</string>
+    
+    <!-- Added missing string resources -->
+    <string name="notification_responding">Processing your response...</string>
+    <string name="llm_placeholder_response">Dziękuję za informację. Przekażę właścicielowi telefonu.</string>
+    <string name="greeting_format_with_name">%1$s, %2$s</string>
 </resources>

@@ -11,11 +11,10 @@ import java.io.IOException;
 
 /**
  * Handles recording of messages from callers using MediaRecorder.
- * Enforces a 60-second recording limit.
+ * Records the entire call from start to finish.
  */
 public class MessageRecorderHandler {
     private static final String TAG = "MessageRecorderHandler";
-    private static final int MAX_RECORDING_DURATION_MS = 60 * 1000; // 60 seconds
     
     private final Context context;
     private final MessageRecorderListener listener;
@@ -69,8 +68,7 @@ public class MessageRecorderHandler {
                     listener.onRecordingStarted();
                 }
                 
-                // Set a timer for the maximum recording duration
-                handler.postDelayed(this::onRecordingLimitReached, MAX_RECORDING_DURATION_MS);
+                // No recording limit - will continue until call ends or stopRecording() is called
                 
             } catch (IOException e) {
                 Log.e(TAG, "Error preparing MediaRecorder", e);
@@ -101,9 +99,6 @@ public class MessageRecorderHandler {
                 
                 String finalPath = currentFilePath;
                 
-                // Remove the recording limit callback
-                handler.removeCallbacksAndMessages(null);
-                
                 if (listener != null) {
                     listener.onRecordingStopped(finalPath, true);
                 }
@@ -117,21 +112,6 @@ public class MessageRecorderHandler {
                 isRecording = false;
                 releaseMediaRecorder();
             }
-        }
-    }
-    
-    /**
-     * Called when the recording time limit is reached
-     */
-    private void onRecordingLimitReached() {
-        Log.d(TAG, "Recording time limit reached");
-        
-        if (isRecording) {
-            if (listener != null) {
-                listener.onRecordingLimitReached();
-            }
-            
-            stopRecording();
         }
     }
     
@@ -164,12 +144,21 @@ public class MessageRecorderHandler {
     }
     
     /**
+     * Check if recording is currently in progress
+     * 
+     * @return true if recording, false otherwise
+     */
+    public boolean isRecording() {
+        return isRecording;
+    }
+    
+    /**
      * Interface for MessageRecorderHandler to communicate with CallSessionManager
      */
     public interface MessageRecorderListener {
         void onRecordingStarted();
         void onRecordingStopped(String filePath, boolean successfullyCompleted);
         void onRecordingError(String errorMessage);
-        void onRecordingLimitReached();
+        void onRecordingLimitReached(); // Kept for backward compatibility but no longer used
     }
 } 

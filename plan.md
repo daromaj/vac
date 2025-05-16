@@ -288,18 +288,17 @@
     - `test_followUpMessagePlays()`: Verify TTS/MediaPlayer is invoked for the follow-up.
 
 ### Task 6.2: Caller Message Recording (via `MessageRecorderHandler`)
-- [ ] **Owner:** DEV
-- **Description:** Implement `MessageRecorderHandler` to allow the caller to leave a message. Enforce a 60-second recording limit. Store audio in app-private storage. Recording continues even if user takes over the call, until call ends or limit is hit.
+- [x] **Owner:** DEV
+- **Description:** Implement `MessageRecorderHandler` to record entire call from start to finish. Recording continues even if user takes over the call, until call ends.
 - **Acceptance Criteria:**
-    - Recording starts if the caller indicates they want to leave a message (or directly after follow-up for MVP).
-    - Recording stops automatically after 60 seconds or when the call naturally ends (even if user has taken over).
+    - Recording starts when call is answered.
+    - Recording stops when call ends.
     - Audio is saved to a file in app-private storage.
     - `MessageRecorderHandler.stopRecording()` is correctly called by `CallSessionManager.stopScreening()` when the call finally terminates.
     - Run all unit tests to ensure no existing functionality is broken by the changes.
     - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
 - **Test Scenarios (Unit Tests):**
     - `test_mediaRecorderStarts()`: Verify `MediaRecorder.start()` is called.
-    - `test_mediaRecorderStopsAfterTimeout()`: Simulate 60s passing, verify `stop()` is called.
     - `test_audioFileIsSaved()`: Check if file path generation is correct (actual saving is integration).
     - `test_recordingContinuesOnUserTakeOver()`.
     - `test_recordingStopsWhenCallEndsPostTakeOver()`.
@@ -320,12 +319,12 @@
 
 ### Task 7.1: Full Interaction Flow Verification
 - [ ] **Owner:** QA (USER)
-- **Description:** Verify the STT functionality, transcription display, follow-up message, message recording (with limit), and playback of recorded messages.
+- **Description:** Verify the STT functionality, transcription display, follow-up message, message recording, and playback of recorded messages.
 - **Acceptance Criteria:**
     - Caller's speech is transcribed to the notification.
     - Silence timeout for STT functions correctly.
     - Follow-up message plays.
-    - Message recording works and respects the 60s limit.
+    - Message recording works as intended (entire call duration).
     - Recorded messages can be listed and played back in the app.
     - All tests performed on Samsung Galaxy S21 Ultra (Android 14).
 
