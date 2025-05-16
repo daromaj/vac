@@ -153,19 +153,29 @@ public class MessageRecorderHandlerTest {
     public void test_recordingLimitReached() throws Exception {
         // Create a test implementation that simulates recording limit reached
         MessageRecorderHandler testRecorder = new MessageRecorderHandler(mockContext, mockListener) {
+            private boolean mIsRecordingStateForTest = false; // Renamed to avoid confusion
+
+            @Override
+            public void startRecording(String outputFileName) {
+                this.mIsRecordingStateForTest = true;
+            }
+
             @Override
             public void release() {
                 // Do nothing in test
             }
         };
         
+        // Simulate recording being in progress by setting the private 'isRecording' field in MessageRecorderHandler
+        // This is necessary because onRecordingLimitReached() checks this field.
+        java.lang.reflect.Field isRecordingField = MessageRecorderHandler.class.getDeclaredField("isRecording");
+        isRecordingField.setAccessible(true);
+        isRecordingField.setBoolean(testRecorder, true); // Set base class's 'isRecording' to true on testRecorder instance
+
         // Use reflection to call the private onRecordingLimitReached method
         Method limitReachedMethod = MessageRecorderHandler.class.getDeclaredMethod("onRecordingLimitReached");
         limitReachedMethod.setAccessible(true);
-        
-        // Simulate recording in progress
-        testRecorder.startRecording("test.3gp");
-        
+                
         // Directly invoke the limit reached method
         limitReachedMethod.invoke(testRecorder);
         

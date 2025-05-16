@@ -73,7 +73,7 @@
 ## Phase 3: Core Call Handling
 
 ### Task 3.1.1: `CallScreeningService` Stub & Manifest Declaration
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** Create the `CallScreeningServiceImpl.java` file, making it extend `android.telecom.CallScreeningService`. Implement the required `onScreenCall` method with a basic stub (e.g., just logging for now). Declare this service correctly in the `AndroidManifest.xml` with the `BIND_SCREENING_SERVICE` permission and the appropriate intent filter (`<action android:name="android.telecom.CallScreeningService" />`).
 - **Acceptance Criteria:**
     - `CallScreeningServiceImpl.java` exists and compiles.
