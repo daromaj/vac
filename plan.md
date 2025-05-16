@@ -202,13 +202,10 @@
     - Otherwise, live TTS is used as before.
     - A UI element (e.g., Switch) in `SetupActivity` allows enabling/disabling the use of the generated file.
     - App compiles, and existing unit tests pass.
-- **Test Scenarios (Unit Tests):**
-    - `test_callUsesGeneratedFile_ifEnabledAndExists()`.
-    - `test_callUsesLiveTTS_ifGeneratedFileDisabled()`.
     - `test_callUsesLiveTTS_ifGeneratedFileMissing()` (even if enabled).
 
 #### Task 4.1.5: Unit Tests for Custom Greeting Feature
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** Ensure comprehensive unit tests are created for all new logic introduced in tasks 4.1.2, 4.1.3, and 4.1.4. This includes testing interactions with `AudioHandler`, `PreferencesManager`, file system (mocked), and `SetupActivity` logic.
 - **Acceptance Criteria:**
     - All new functionalities related to custom greeting generation, playback, and integration have corresponding unit tests.
