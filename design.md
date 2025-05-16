@@ -260,8 +260,8 @@ Based on initial review, the following clarifications and decisions apply to the
     *   **Battery:** While noted as a concern, extensive optimization for battery drain related to `SpeechRecognizer` restarts is deferred post-MVP. Focus is on functional correctness.
 
 4.  **Message Recording Duration:**
-    *   **Limit:** A hard limit of 60 seconds will be enforced for caller messages recorded via `MediaRecorder`.
-    *   **Notification:** The assistant's prompt to leave a message may state this limit (e.g., "You have 60 seconds to leave a message."). No mid-recording warnings.
+    *   **Limit:** Recording will cover the entire duration of the call, from the moment the assistant screens it until the call is terminated.
+    *   **Notification:** The prompt to leave a message will not mention a time limit.
 
 5.  **`CallScreeningService` Reliability (MVP Focus):**
     *   **Target Specificity:** The primary goal is for `CallScreeningService` to function correctly and reliably on the Galaxy S21 Ultra (Android 14).
@@ -272,7 +272,7 @@ Based on initial review, the following clarifications and decisions apply to the
     *   **Guidance:** If the `pl-PL` pack is missing, the Setup screen will inform the user and provide a button/link that attempts to open Android's voice input settings (`Settings.ACTION_VOICE_INPUT_SETTINGS`) for the user to download it.
     *   **Fallback:** If the language pack is not installed/available, STT-dependent features will be disabled, and this will be communicated to the user.
 
-7.  **MVP Error Handling & User Feedback:**
+7. **MVP Error Handling & User Feedback:**
     *   **Critical Errors:** Use Android `Toast` messages for immediate user feedback on critical operational failures (e.g., "Audio recording failed," "Speech engine unavailable").
     *   **Logging:** Implement comprehensive logging for debugging purposes.
     *   **Silent Failures:** Avoid app crashes. If a non-critical component fails (e.g., TTS for a specific prompt), the assistant may proceed silently or use a minimal fallback if designed (e.g., a very short, generic pre-recorded sound if a main greeting fails).
@@ -396,11 +396,11 @@ This section outlines a potential class structure for the MVP, focusing on separ
         *   Immediately stop any ongoing assistant message playback (TTS): `audioHandler.stopPlayback()`.
         *   Transition its internal state to prevent generation of any new automated assistant responses or actions.
         *   Instruct the `SpeechRecognitionHandler` to stop listening for *new* audio: `speechRecognitionHandler.stopListening()`. Any already buffered audio may be processed, potentially at a lower priority (even after the call ends), but live transcription updates for new speech will cease.
-        *   The `MessageRecorderHandler` will **continue recording** the call audio until the call naturally terminates or the recording limit is reached.
+        *   The `MessageRecorderHandler` will **continue recording** the call audio until the call naturally terminates.
         *   Notify `CallScreeningServiceImpl` (via `CallSessionListener.onUserTookOver()`).
-    *   `CallScreeningServiceImpl` will update the assistant's notification (e.g., remove "Take Over" button, indicate assistant is muted, stop showing live transcript updates).
-    *   The call's audio stream reverts to the standard Android Telecom handling, allowing the user to converse directly.
-    *   When the phone call eventually ends, `CallScreeningServiceImpl` will ensure that the still-active `MessageRecorderHandler` is stopped and all resources, including any final processing for `SpeechRecognitionHandler`, are properly released via `CallSessionManager.stopScreening(true)`.
+        *   `CallScreeningServiceImpl` will update the assistant's notification (e.g., remove "Take Over" button, indicate assistant is muted, stop showing live transcript updates).
+        *   The call's audio stream reverts to the standard Android Telecom handling, allowing the user to converse directly.
+        *   When the phone call eventually ends, `CallScreeningServiceImpl` will ensure that the still-active `MessageRecorderHandler` is stopped and all resources, including any final processing for `SpeechRecognitionHandler`, are properly released via `CallSessionManager.stopScreening(true)`.
 
 This revised structure explicitly incorporates the user's ability to take control, ensuring the assistant remains a tool, not a gatekeeper.
 
@@ -444,8 +444,8 @@ sequenceDiagram
     AH-->>CSM: onPlaybackCompleted()
     CSM->>MRH: startRecording(fileName)
     MRH-->>CSM: onRecordingStarted()
-    Note right of MRH: Caller leaves message (up to 60s)...
-    MRH-->>CSM: onRecordingStopped(filePath, true) / onRecordingLimitReached()
+    Note right of MRH: Caller leaves message...
+    MRH-->>CSM: onRecordingStopped(filePath, true) // Recording stops when call ends or user takes over and then call ends
     CSM->>NH: updateTranscription("Message recorded.") // Or similar status
     CSM->>CSS: onSessionCompleted() (via listener)
     CSS->>CSM: stopScreening(false)

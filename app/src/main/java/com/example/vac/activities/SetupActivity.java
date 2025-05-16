@@ -294,7 +294,7 @@ public class SetupActivity extends AppCompatActivity {
 
     private void checkPolishLanguagePack() {
         boolean isGeneralRecognitionAvailable = SpeechRecognizer.isRecognitionAvailable(this);
-
+        
         if (!isGeneralRecognitionAvailable) {
             polishLanguagePackStatus.setText(R.string.speech_recognition_not_available);
             polishLanguagePackStatus.setTextColor(getResources().getColor(android.R.color.holo_red_dark, null));
@@ -302,7 +302,7 @@ public class SetupActivity extends AppCompatActivity {
             saveButton.setEnabled(false); // Disable save if no SR
             return;
         }
-
+        
         // Check specifically for Polish language support by querying activities
         Intent recognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pl-PL");
@@ -314,7 +314,7 @@ public class SetupActivity extends AppCompatActivity {
 
         PackageManager pm = getPackageManager();
         List<ResolveInfo> activities = pm.queryIntentActivities(recognizerIntent, 0);
-
+        
         if (!activities.isEmpty()) {
             polishLanguagePackStatus.setText(R.string.polish_language_pack_available);
             polishLanguagePackStatus.setTextColor(getResources().getColor(android.R.color.holo_green_dark, null));
