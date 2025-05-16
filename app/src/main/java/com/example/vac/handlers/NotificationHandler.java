@@ -1,10 +1,12 @@
 package com.example.vac.handlers;
 
 import android.app.Notification;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 
 import androidx.core.app.NotificationCompat;
 
@@ -15,8 +17,9 @@ import com.example.vac.R;
  */
 public class NotificationHandler {
     private static final String TAG = "NotificationHandler";
-    private static final int NOTIFICATION_ID = 1001;
+    public static final int NOTIFICATION_ID = 1001;
     private static final String CHANNEL_ID = "VAC_CALL_SCREENING_CHANNEL";
+    private static final String CHANNEL_NAME = "VAC Call Screening";
     private static final String ACTION_TAKE_OVER = "com.example.vac.TAKE_OVER";
     
     private final Context context;
@@ -26,6 +29,21 @@ public class NotificationHandler {
     public NotificationHandler(Context context) {
         this.context = context;
         this.notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        createNotificationChannel();
+    }
+    
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (notificationManager.getNotificationChannel(CHANNEL_ID) == null) {
+                NotificationChannel channel = new NotificationChannel(
+                        CHANNEL_ID, 
+                        CHANNEL_NAME, 
+                        NotificationManager.IMPORTANCE_HIGH
+                );
+                channel.setDescription("Notifications for active call screening by VAC");
+                notificationManager.createNotificationChannel(channel);
+            }
+        }
     }
     
     /**

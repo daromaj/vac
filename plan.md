@@ -243,7 +243,7 @@
     - `test_stopListeningHaltsNewAudioIntake()`.
 
 ### Task 5.3: Live Transcription & Call Control Notification (via `NotificationHandler`)
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** Implement `NotificationHandler` as per `design.md`. Display live transcription snippets and a "Take Over Call" button via a persistent foreground service notification managed by `CallScreeningServiceImpl`.
 - **Acceptance Criteria:**
     - A foreground service notification is displayed by `CallScreeningServiceImpl` (using `NotificationHandler`) during an active assistant call.
