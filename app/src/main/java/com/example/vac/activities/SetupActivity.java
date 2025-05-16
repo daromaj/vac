@@ -452,13 +452,19 @@ public class SetupActivity extends AppCompatActivity {
             String filePath = preferencesManager.getCustomGreetingFilePath();
             if (filePath != null && !filePath.isEmpty()) {
                 File greetingFile = new File(filePath);
-                if (greetingFile.exists()) {
-                    Uri fileUri = Uri.fromFile(greetingFile);
-                    audioHandler.playAudioFile(fileUri);
-                    Toast.makeText(this, "Playing custom greeting...", Toast.LENGTH_SHORT).show();
+                if (greetingFile.exists() && greetingFile.canRead()) {
+                    try {
+                        Uri fileUri = Uri.fromFile(greetingFile);
+                        audioHandler.playAudioFile(fileUri);
+                        Toast.makeText(this, "Playing custom greeting...", Toast.LENGTH_SHORT).show();
+                    } catch (Exception e) {
+                        Log.e("SetupActivity", "Error playing greeting file: " + e.getMessage(), e);
+                        Toast.makeText(this, "Error playing greeting: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                        customGreetingStatusText.setText("Status: Error playing file - " + e.getMessage());
+                    }
                 } else {
-                    Toast.makeText(this, "Custom greeting file not found at path: " + filePath, Toast.LENGTH_LONG).show();
-                    customGreetingStatusText.setText("Status: Error - File not found.");
+                    Toast.makeText(this, "Custom greeting file not found or not readable: " + filePath, Toast.LENGTH_LONG).show();
+                    customGreetingStatusText.setText("Status: Error - File not found or not readable.");
                     preferencesManager.setCustomGreetingFilePath(null); // Clear invalid path
                 }
             } else {

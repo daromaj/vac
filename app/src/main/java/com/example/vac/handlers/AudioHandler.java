@@ -288,43 +288,68 @@ public class AudioHandler {
 
         try { Log.i(TAG, "Attempting to play audio file: " + audioUri.toString()); } catch (Throwable t) {}
         if (requestAudioFocus()) {
-            mediaPlayer = new MediaPlayer();
+            try {
+                mediaPlayer = new MediaPlayer();
 
-            AudioAttributes audioAttributes = new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH) // Suitable for spoken greetings
-                .build();
-            mediaPlayer.setAudioAttributes(audioAttributes);
-
-            mediaPlayer.setOnPreparedListener(mp -> {
-                try { Log.d(TAG, "MediaPlayer prepared, starting playback."); } catch (Throwable t) {}
-                isPlayingAudio = true;
-                mp.start();
-                if (listener != null) {
-                    listener.onPlaybackStarted();
-                }
-            });
-            
-            mediaPlayer.setOnCompletionListener(mp -> {
-                isPlayingAudio = false;
+                AudioAttributes audioAttributes = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH) // Suitable for spoken greetings
+                    .build();
+                mediaPlayer.setAudioAttributes(audioAttributes);
+                
+                // Set the data source - THIS WAS MISSING
+                mediaPlayer.setDataSource(context, audioUri);
+                
+                mediaPlayer.setOnPreparedListener(mp -> {
+                    try { Log.d(TAG, "MediaPlayer prepared, starting playback."); } catch (Throwable t) {}
+                    isPlayingAudio = true;
+                    mp.start();
+                    if (listener != null) {
+                        listener.onPlaybackStarted();
+                    }
+                });
+                
+                mediaPlayer.setOnCompletionListener(mp -> {
+                    isPlayingAudio = false;
+                    releaseAudioFocus();
+                    if (listener != null) {
+                        listener.onPlaybackCompleted();
+                    }
+                });
+                
+                mediaPlayer.setOnErrorListener((mp, what, extra) -> {
+                    isPlayingAudio = false;
+                    releaseAudioFocus();
+                    if (listener != null) {
+                        listener.onPlaybackError("MediaPlayer error: what=" + what + ", extra=" + extra);
+                    }
+                    return true;
+                });
+                
+                mediaPlayer.prepareAsync();
+            } catch (IOException e) {
+                try { Log.e(TAG, "IOException setting up MediaPlayer: " + e.getMessage(), e); } catch (Throwable t) {}
                 releaseAudioFocus();
                 if (listener != null) {
-                    listener.onPlaybackCompleted();
+                    listener.onPlaybackError("Error preparing audio file: " + e.getMessage());
                 }
-            });
-            
-            mediaPlayer.setOnErrorListener((mp, what, extra) -> {
-                isPlayingAudio = false;
+                if (mediaPlayer != null) {
+                    mediaPlayer.release();
+                    mediaPlayer = null;
+                }
+            } catch (Exception e) {
+                try { Log.e(TAG, "Exception in playAudioFile: " + e.getMessage(), e); } catch (Throwable t) {}
                 releaseAudioFocus();
                 if (listener != null) {
-                    listener.onPlaybackError("MediaPlayer error: what=" + what + ", extra=" + extra);
+                    listener.onPlaybackError("Error playing audio file: " + e.getMessage());
                 }
-                return true;
-            });
-            
-            mediaPlayer.prepareAsync();
+                if (mediaPlayer != null) {
+                    mediaPlayer.release();
+                    mediaPlayer = null;
+                }
+            }
         } else {
-             try { Log.e(TAG, "Failed to get audio focus for audio file."); } catch (Throwable t) {}
+            try { Log.e(TAG, "Failed to get audio focus for audio file."); } catch (Throwable t) {}
             if (listener != null) {
                 listener.onPlaybackError("Failed to get audio focus for audio file");
             }
