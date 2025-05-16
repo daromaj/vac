@@ -72,17 +72,41 @@
 
 ## Phase 3: Core Call Handling
 
-### Task 3.1: `CallScreeningService` Implementation
+### Task 3.1.1: `CallScreeningService` Stub & Manifest Declaration
 - [ ] **Owner:** DEV
-- **Description:** Implement the basic `CallScreeningServiceImpl` as per `design.md`. Ensure it's correctly declared in `AndroidManifest.xml` and can be set as the default call screening app. This service will manage a foreground service for ongoing call operations and its associated notification.
+- **Description:** Create the `CallScreeningServiceImpl.java` file, making it extend `android.telecom.CallScreeningService`. Implement the required `onScreenCall` method with a basic stub (e.g., just logging for now). Declare this service correctly in the `AndroidManifest.xml` with the `BIND_SCREENING_SERVICE` permission and the appropriate intent filter (`<action android:name="android.telecom.CallScreeningService" />`).
 - **Acceptance Criteria:**
-    - App can be selected as the default Call Screening application.
-    - `CallScreeningServiceImpl.onScreenCall()` is invoked for incoming calls chosen by the user to be screened.
-    - A foreground service is started by `CallScreeningServiceImpl` to manage the active call session and its notification.
+    - `CallScreeningServiceImpl.java` exists and compiles.
+    - Service is declared in `AndroidManifest.xml` with necessary permission and intent filter.
+    - The app appears in the list of possible call screening apps in Android settings.
     - Run all unit tests to ensure no existing functionality is broken by the changes.
     - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
 - **Test Scenarios (Unit Tests):**
-    - (Primarily integration/manual testing for service binding and foreground service lifecycle).
+    - Manual check in Android settings to see if the app is listed.
+    - Code review for manifest and service structure.
+
+### Task 3.1.2: Default Call Screening App & `onScreenCall` Invocation
+- [ ] **Owner:** DEV
+- **Description:** Ensure the app can be reliably selected and function as the default Call Screening application. This might involve adding a helper UI in `SetupActivity` (e.g., a button/status text) that directs the user to the system settings to select the app as the default call screener if it isn't already. Verify that `onScreenCall()` in `CallScreeningServiceImpl` is invoked when an incoming call is made while the app is the default screener.
+- **Acceptance Criteria:**
+    - App can be selected as the default Call Screening application through Android settings.
+    - `CallScreeningServiceImpl.onScreenCall()` is demonstrably invoked (e.g., via logging or a Toast for now) when an incoming call occurs and the app is the default screener.
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
+- **Test Scenarios (Unit Tests):**
+    - Manual testing: Set app as default, make incoming call, check logs/Toast.
+
+### Task 3.1.3: Foreground Service Initiation & Basic Notification
+- [ ] **Owner:** DEV
+- **Description:** Within `CallScreeningServiceImpl` (likely triggered from `onScreenCall`), implement the logic to start a foreground service. This service will eventually manage the active call session details. For this task, just focus on starting the service and displaying a *very basic* persistent notification (e.g., "VAC is screening a call"). This requires the `FOREGROUND_SERVICE` permission in the manifest and potentially a more specific foreground service type for Android 10+ (e.g. `phoneCall` for Android Q/10, `mediaPlayback` if using media, or checking for newer types like `microphone` for Android S/12 or `camera` if relevant. For Android 14, `FOREGROUND_SERVICE_PHONE_CALL` or `FOREGROUND_SERVICE_SPECIAL_USE` with appropriate declarations might be needed. We will start with `FOREGROUND_SERVICE` and refine the type as required by Android version compatibility and functionality).
+- **Acceptance Criteria:**
+    - A foreground service is started by `CallScreeningServiceImpl` when `onScreenCall` processes a call.
+    - A basic, persistent notification is displayed for this foreground service.
+    - Necessary foreground service permissions are declared in the manifest.
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
+- **Test Scenarios (Unit Tests):**
+    - Manual testing: Make an incoming call that triggers screening. Verify the foreground service starts and its notification appears.
 
 ### Task 3.2: Incoming Call Trigger & Assistant Activation
 - [ ] **Owner:** DEV
