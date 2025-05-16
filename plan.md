@@ -180,7 +180,7 @@
     - `test_generateGreetingFile_ttsFailure()`: Verify error is handled, UI status updates.
 
 #### Task 4.1.3: Implement "Play Generated Greeting" Logic
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** Implement the functionality for the "Play Generated Greeting" button in `SetupActivity`. This involves:
     - Checking if a custom greeting file exists (based on preference or file system check).
     - If it exists, using `MediaPlayer` (likely via `AudioHandler.playAudioFile()`) to play back the saved audio file.

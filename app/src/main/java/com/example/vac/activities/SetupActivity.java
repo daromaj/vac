@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.speech.RecognizerIntent;
@@ -25,6 +26,7 @@ import com.example.vac.handlers.AudioHandler;
 import com.example.vac.utils.PreferencesManager;
 import com.google.android.material.textfield.TextInputEditText;
 
+import java.io.File;
 import java.util.List;
 import java.util.Locale;
 
@@ -111,6 +113,7 @@ public class SetupActivity extends AppCompatActivity {
         // Set click listener for the new button
         setDefaultScreenerButton.setOnClickListener(v -> openDefaultCallScreenerSettings());
         generateGreetingFileButton.setOnClickListener(v -> generateGreetingFile());
+        playGeneratedGreetingButton.setOnClickListener(v -> playGeneratedGreeting());
 
         // Initialize ActivityResultLauncher for RoleManager
         // This launcher will handle the result of the role request if we decide to request it directly.
@@ -398,6 +401,30 @@ public class SetupActivity extends AppCompatActivity {
                         });
                     }
                 });
+    }
+
+    private void playGeneratedGreeting() {
+        if (preferencesManager.hasCustomGreetingFile()) {
+            String filePath = preferencesManager.getCustomGreetingFilePath();
+            if (filePath != null && !filePath.isEmpty()) {
+                File greetingFile = new File(filePath);
+                if (greetingFile.exists()) {
+                    Uri fileUri = Uri.fromFile(greetingFile);
+                    audioHandler.playAudioFile(fileUri);
+                    Toast.makeText(this, "Playing custom greeting...", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, "Custom greeting file not found at path: " + filePath, Toast.LENGTH_LONG).show();
+                    customGreetingStatusText.setText("Status: Error - File not found.");
+                    preferencesManager.setCustomGreetingFilePath(null); // Clear invalid path
+                }
+            } else {
+                Toast.makeText(this, "Custom greeting file path not configured.", Toast.LENGTH_SHORT).show();
+                customGreetingStatusText.setText(getString(R.string.custom_greeting_status_default));
+            }
+        } else {
+            Toast.makeText(this, "No custom greeting file generated yet.", Toast.LENGTH_SHORT).show();
+            customGreetingStatusText.setText(getString(R.string.custom_greeting_status_default));
+        }
     }
 
     @Override
