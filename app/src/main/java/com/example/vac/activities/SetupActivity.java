@@ -3,6 +3,7 @@ package com.example.vac.activities;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.speech.RecognizerIntent;
@@ -22,6 +23,7 @@ import com.example.vac.databinding.ActivitySetupBinding;
 import com.example.vac.utils.PreferencesManager;
 import com.google.android.material.textfield.TextInputEditText;
 
+import java.util.List;
 import java.util.Locale;
 
 public class SetupActivity extends AppCompatActivity {
@@ -155,32 +157,38 @@ public class SetupActivity extends AppCompatActivity {
     }
 
     private void checkPolishLanguagePack() {
-        boolean isRecognitionAvailable = SpeechRecognizer.isRecognitionAvailable(this);
-        
-        if (!isRecognitionAvailable) {
-            polishLanguagePackStatus.setText("Speech recognition is not available on this device.");
+        boolean isGeneralRecognitionAvailable = SpeechRecognizer.isRecognitionAvailable(this);
+
+        if (!isGeneralRecognitionAvailable) {
+            polishLanguagePackStatus.setText(R.string.speech_recognition_not_available);
             polishLanguagePackStatus.setTextColor(getResources().getColor(android.R.color.holo_red_dark, null));
             openVoiceSettingsButton.setVisibility(View.VISIBLE);
+            saveButton.setEnabled(false); // Disable save if no SR
             return;
         }
-        
-        // Check for Polish language specifically
-        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pl-PL");
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "pl-PL");
-        
-        // This is an approximation since there's no direct way to check for specific offline models
-        // A full implementation would need to attempt recognition and handle errors
-        boolean hasPolishLanguage = SpeechRecognizer.isRecognitionAvailable(this);
-        
-        if (hasPolishLanguage) {
-            polishLanguagePackStatus.setText("Polish language pack appears to be available.");
+
+        // Check specifically for Polish language support by querying activities
+        Intent recognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pl-PL");
+        // EXTRA_LANGUAGE_PREFERENCE tells the recognizer which language to prefer if it supports multiple
+        // and the primary language is not available or not specified.
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "pl-PL"); 
+        // EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE can be used if we strictly want results for this lang or none.
+        // For checking availability, querying activities is a common approach.
+
+        PackageManager pm = getPackageManager();
+        List<ResolveInfo> activities = pm.queryIntentActivities(recognizerIntent, 0);
+
+        if (!activities.isEmpty()) {
+            polishLanguagePackStatus.setText(R.string.polish_language_pack_available);
             polishLanguagePackStatus.setTextColor(getResources().getColor(android.R.color.holo_green_dark, null));
             openVoiceSettingsButton.setVisibility(View.GONE);
+            saveButton.setEnabled(true); // Enable save if Polish SR seems available
         } else {
             polishLanguagePackStatus.setText(R.string.polish_language_pack_missing);
             polishLanguagePackStatus.setTextColor(getResources().getColor(android.R.color.holo_red_dark, null));
             openVoiceSettingsButton.setVisibility(View.VISIBLE);
+            saveButton.setEnabled(false); // Disable save if Polish SR is missing
         }
     }
 

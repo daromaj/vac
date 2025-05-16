@@ -6,7 +6,7 @@
     <string name="setup_title">Virtual Assistant Setup</string>
     <string name="name_input_hint">Your Name</string>
     <string name="greeting_input_hint">Custom Greeting (optional)</string>
-    <string name="default_greeting">Hi, you\'ve reached %1$s\'s phone. This is their virtual assistant. This call is being recorded. How can I help you?</string>
+    <string name="default_greeting">Hello %1$s, this is your Voice Assistant. How can I help you?</string>
     <string name="save_button">Save</string>
     
     <!-- Permissions -->
@@ -17,11 +17,11 @@
     <string name="request_permissions_button">Request Permissions</string>
     
     <!-- Language Pack -->
-    <string name="polish_language_pack_missing">The Polish language pack is required for speech recognition but isn\'t installed.</string>
+    <string name="polish_language_pack_missing">Polish language pack (pl-PL) for offline speech recognition seems to be missing or not configured. Please install or enable it in Android Voice Input settings.</string>
     <string name="open_voice_settings_button">Open Voice Settings</string>
     
     <!-- Settings saved confirmation -->
-    <string name="settings_saved">Settings saved successfully!</string>
+    <string name="settings_saved">Settings saved!</string>
     
     <!-- Messages Activity -->
     <string name="title_recorded_messages">Recorded Messages</string>
@@ -31,4 +31,7 @@
     <string name="btn_delete">Delete</string>
     <string name="message_deleted">Message deleted</string>
     <string name="error_playing_message">Error playing message</string>
+    <string name="action_sign_in_short">Sign in</string>
+    <string name="speech_recognition_not_available">Speech recognition is not available on this device. Please install or enable a speech recognition engine.</string>
+    <string name="polish_language_pack_available">Polish language pack (pl-PL) appears to be available.</string>
 </resources>
