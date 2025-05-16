@@ -11,6 +11,7 @@ public class PreferencesManager {
     private static final String KEY_USER_NAME = "user_name";
     private static final String KEY_GREETING_TEXT = "greeting_text";
     private static final String KEY_CUSTOM_GREETING_FILE_PATH = "custom_greeting_file_path";
+    private static final String KEY_USE_CUSTOM_GREETING_FILE = "use_custom_greeting_file";
     private static final String DEFAULT_USER_NAME = "";
     private static final String DEFAULT_GREETING_TEXT = "";
     
@@ -82,6 +83,24 @@ public class PreferencesManager {
     public boolean hasCustomGreetingFile() {
         String path = getCustomGreetingFilePath();
         return path != null && !path.isEmpty();
+    }
+
+    /**
+     * Set whether to use the custom generated greeting file for calls.
+     *
+     * @param use true to use the custom file, false otherwise.
+     */
+    public void setUseCustomGreetingFile(boolean use) {
+        preferences.edit().putBoolean(KEY_USE_CUSTOM_GREETING_FILE, use).apply();
+    }
+
+    /**
+     * Check if the custom generated greeting file should be used for calls.
+     *
+     * @return true if the custom file should be used, false otherwise (defaults to false).
+     */
+    public boolean shouldUseCustomGreetingFile() {
+        return preferences.getBoolean(KEY_USE_CUSTOM_GREETING_FILE, false);
     }
     
     /**

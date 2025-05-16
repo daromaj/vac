@@ -12,6 +12,8 @@ import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import com.example.vac.R;
+import com.example.vac.handlers.AudioHandler;
+import com.example.vac.utils.PreferencesManager;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -24,13 +26,12 @@ import org.robolectric.shadows.ShadowSpeechRecognizer;
 import org.robolectric.shadows.ShadowPackageManager;
 import org.robolectric.shadows.ShadowSettings;
 
-import com.example.vac.utils.PreferencesManager;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.robolectric.Shadows.shadowOf;
 
 import android.Manifest;
@@ -50,13 +51,34 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.isNull;
+
+import org.mockito.ArgumentCaptor;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+
+import java.io.File;
+import java.io.IOException;
+import android.net.Uri;
+import org.robolectric.shadows.ShadowToast;
+import com.google.android.material.switchmaterial.SwitchMaterial;
+
 @RunWith(AndroidJUnit4.class)
-@Config(sdk = Config.NEWEST_SDK) // Test on newest SDK only for faster tests
+@Config(sdk = Config.NEWEST_SDK, shadows = {SetupActivityTest.CustomShadowSpeechRecognizer.class})
 public class SetupActivityTest {
 
     private PreferencesManager preferencesManager;
     private String defaultGreetingFormat;
     private ShadowApplication shadowApplication;
+    private AudioHandler mockAudioHandler;
 
     // --- Custom Shadow for SpeechRecognizer ---
     @org.robolectric.annotation.Implements(SpeechRecognizer.class)
@@ -87,12 +109,13 @@ public class SetupActivityTest {
     public void setUp() {
         Context context = RuntimeEnvironment.getApplication();
         preferencesManager = new PreferencesManager(context);
-        // Clear any previous preferences to ensure a clean state for each test
         preferencesManager.saveUserName("");
         preferencesManager.saveGreetingText("");
-        // Load the default greeting format string from resources
+        preferencesManager.setCustomGreetingFilePath(null);
+        preferencesManager.setUseCustomGreetingFile(false);
         defaultGreetingFormat = context.getString(R.string.default_greeting);
         shadowApplication = shadowOf(RuntimeEnvironment.getApplication());
+        mockAudioHandler = mock(AudioHandler.class);
     }
 
     @Test
@@ -411,4 +434,227 @@ public class SetupActivityTest {
             });
         }
     }
+
+    // --- Tests for Task 4.1.2: Generate Greeting File Logic ---
+
+    @Test
+    public void test_generateGreetingFile_success() {
+        final String testName = "Darek";
+        final String testBaseGreeting = "Hello from Darek";
+        final String expectedSynthesizedText = testBaseGreeting + " This call is being recorded.";
+        final String expectedFileName = "custom_greeting_generated.wav";
+        final String fakeFilePath = "/data/user/0/com.example.vac/files/" + expectedFileName;
+
+        try (ActivityScenario<SetupActivity> scenario = ActivityScenario.launch(SetupActivity.class)) {
+            scenario.onActivity(activity -> {
+                activity.audioHandler = mockAudioHandler;
+
+                EditText nameInput = activity.findViewById(R.id.name_input);
+                EditText greetingInput = activity.findViewById(R.id.greeting_input);
+                Button generateButton = activity.findViewById(R.id.generate_greeting_file_button);
+                TextView statusText = activity.findViewById(R.id.custom_greeting_status_text);
+
+                nameInput.setText(testName);
+                greetingInput.setText(testBaseGreeting);
+
+                generateButton.performClick();
+
+                ArgumentCaptor<String> textCaptor = ArgumentCaptor.forClass(String.class);
+                ArgumentCaptor<String> fileCaptor = ArgumentCaptor.forClass(String.class);
+                ArgumentCaptor<AudioHandler.SynthesisCallback> callbackCaptor = ArgumentCaptor.forClass(AudioHandler.SynthesisCallback.class);
+
+                verify(mockAudioHandler).synthesizeGreetingToFile(textCaptor.capture(), fileCaptor.capture(), callbackCaptor.capture());
+                assertEquals(expectedSynthesizedText, textCaptor.getValue());
+                assertEquals(expectedFileName, fileCaptor.getValue());
+                assertNotNull(callbackCaptor.getValue());
+
+                callbackCaptor.getValue().onSuccess(fakeFilePath);
+
+                assertEquals("Status: Generated " + expectedFileName, statusText.getText().toString());
+                assertEquals(fakeFilePath, preferencesManager.getCustomGreetingFilePath());
+                assertTrue(generateButton.isEnabled());
+            });
+        }
+    }
+
+    @Test
+    public void test_generateGreetingFile_ttsFailure() {
+        final String testName = "DarekFail";
+        final String testBaseGreeting = "Test greeting for failure";
+        final String expectedSynthesizedText = testBaseGreeting + " This call is being recorded.";
+        final String expectedFileName = "custom_greeting_generated.wav";
+
+        try (ActivityScenario<SetupActivity> scenario = ActivityScenario.launch(SetupActivity.class)) {
+            scenario.onActivity(activity -> {
+                activity.audioHandler = mockAudioHandler;
+
+                EditText nameInput = activity.findViewById(R.id.name_input);
+                EditText greetingInput = activity.findViewById(R.id.greeting_input);
+                Button generateButton = activity.findViewById(R.id.generate_greeting_file_button);
+                TextView statusText = activity.findViewById(R.id.custom_greeting_status_text);
+
+                nameInput.setText(testName);
+                greetingInput.setText(testBaseGreeting);
+                generateButton.performClick();
+
+                ArgumentCaptor<AudioHandler.SynthesisCallback> callbackCaptor = ArgumentCaptor.forClass(AudioHandler.SynthesisCallback.class);
+                verify(mockAudioHandler).synthesizeGreetingToFile(eq(expectedSynthesizedText), eq(expectedFileName), callbackCaptor.capture());
+
+                String errorMessage = "TTS engine blew up";
+                callbackCaptor.getValue().onError(errorMessage);
+
+                assertEquals("Status: Error - " + errorMessage, statusText.getText().toString());
+                assertNull(preferencesManager.getCustomGreetingFilePath());
+                assertTrue(generateButton.isEnabled());
+            });
+        }
+    }
+
+    @Test
+    public void test_generateGreetingFile_emptyGreetingText_showsError() {
+         try (ActivityScenario<SetupActivity> scenario = ActivityScenario.launch(SetupActivity.class)) {
+            scenario.onActivity(activity -> {
+                activity.audioHandler = mockAudioHandler;
+
+                EditText nameInput = activity.findViewById(R.id.name_input);
+                EditText greetingInput = activity.findViewById(R.id.greeting_input);
+                Button generateButton = activity.findViewById(R.id.generate_greeting_file_button);
+                TextView statusText = activity.findViewById(R.id.custom_greeting_status_text);
+
+                String testUserName = "TestUser";
+                nameInput.setText(testUserName);
+                greetingInput.setText("   "); // Empty after trim
+
+                generateButton.performClick();
+
+                // Verify synthesis IS called
+                ArgumentCaptor<String> textCaptor = ArgumentCaptor.forClass(String.class);
+                ArgumentCaptor<String> fileCaptor = ArgumentCaptor.forClass(String.class);
+                verify(mockAudioHandler).synthesizeGreetingToFile(textCaptor.capture(), fileCaptor.capture(), any(AudioHandler.SynthesisCallback.class));
+
+                // Construct expected default greeting text
+                String recordingNoticeTrimmed = " This call is being recorded.".trim();
+                String expectedSynthesizedText = String.format(Locale.US, "Hello, you have reached %s.%s", testUserName, recordingNoticeTrimmed);
+                String expectedFileName = "custom_greeting_generated.wav";
+
+                assertEquals(expectedSynthesizedText, textCaptor.getValue());
+                assertEquals(expectedFileName, fileCaptor.getValue());
+                
+                // Verify UI status before callback
+                assertEquals("Status: Generating " + expectedFileName + "...", statusText.getText().toString());
+                assertFalse(generateButton.isEnabled());
+
+                // Verify that the "empty greeting" Toast was NOT shown
+                // This relies on ShadowToast.getLatestToast() not being the error toast.
+                // A more robust way might be to check ShadowToast.shownToastCount() or clear toasts before action.
+                String latestToast = ShadowToast.getTextOfLatestToast();
+                if (latestToast != null) {
+                    assertFalse("Error toast for empty greeting should not be shown", 
+                        latestToast.equals(activity.getString(R.string.greeting_text_cannot_be_empty)));
+                }
+            });
+        }
+    }
+    // --- End Tests for Task 4.1.2 ---
+
+    // --- Tests for Task 4.1.3: Play Generated Greeting Logic ---
+    @Test
+    public void test_playGeneratedGreeting_fileExists() throws IOException {
+        final String dummyFileName = "test_greeting.wav";
+        File filesDir = RuntimeEnvironment.getApplication().getFilesDir();
+        File dummyFile = new File(filesDir, dummyFileName);
+        // Create a dummy file
+        assertTrue("Failed to create dummy file for testing", dummyFile.createNewFile() || dummyFile.exists());
+        final String fakeFilePath = dummyFile.getAbsolutePath();
+
+        try (ActivityScenario<SetupActivity> scenario = ActivityScenario.launch(SetupActivity.class)) {
+            scenario.onActivity(activity -> {
+                // Inject mocks
+                activity.audioHandler = mockAudioHandler;
+                // Configure PreferencesManager for the activity's instance
+                PreferencesManager activityPrefs = new PreferencesManager(activity);
+                activityPrefs.setCustomGreetingFilePath(fakeFilePath);
+                activityPrefs.setUseCustomGreetingFile(true); // Assume it's set if file exists
+
+                Button playButton = activity.findViewById(R.id.play_generated_greeting_button);
+                playButton.performClick();
+
+                ArgumentCaptor<Uri> uriCaptor = ArgumentCaptor.forClass(Uri.class);
+                verify(mockAudioHandler).playAudioFile(uriCaptor.capture());
+                assertEquals(Uri.fromFile(dummyFile), uriCaptor.getValue());
+
+                // Check that status text was not changed to an error
+                TextView statusText = activity.findViewById(R.id.custom_greeting_status_text);
+                // This check depends on initial state or successful playback message.
+                // For now, ensure it's not an error state.
+                // The actual message might be "Playing..." or remain as is. Let's assume it doesn't show error.
+                assertFalse("Status text should not indicate an error", statusText.getText().toString().toLowerCase().contains("error"));
+                assertFalse("Status text should not say 'no file'", statusText.getText().toString().toLowerCase().contains("no file"));
+
+
+            });
+        } finally {
+            if (dummyFile.exists()) {
+                dummyFile.delete();
+            }
+        }
+    }
+
+    @Test
+    public void test_playGeneratedGreeting_noFileSetInPreferences() {
+        try (ActivityScenario<SetupActivity> scenario = ActivityScenario.launch(SetupActivity.class)) {
+            scenario.onActivity(activity -> {
+                activity.audioHandler = mockAudioHandler;
+                PreferencesManager activityPrefs = new PreferencesManager(activity);
+                activityPrefs.setCustomGreetingFilePath(null); // Ensure no file path is set
+
+                Button playButton = activity.findViewById(R.id.play_generated_greeting_button);
+                TextView statusText = activity.findViewById(R.id.custom_greeting_status_text);
+
+                playButton.performClick();
+
+                verify(mockAudioHandler, never()).playAudioFile(any(Uri.class));
+                assertEquals(activity.getString(R.string.custom_greeting_status_default), statusText.getText().toString());
+                assertEquals("No custom greeting file generated yet.", ShadowToast.getTextOfLatestToast());
+            });
+        }
+    }
+
+    @Test
+    public void test_playGeneratedGreeting_fileNotFoundOnDisk() {
+        final String nonExistentFileName = "non_existent_greeting.wav";
+        final String fakeFilePath = new File(RuntimeEnvironment.getApplication().getFilesDir(), nonExistentFileName).getAbsolutePath();
+
+        try (ActivityScenario<SetupActivity> scenario = ActivityScenario.launch(SetupActivity.class)) {
+            scenario.onActivity(activity -> {
+                activity.audioHandler = mockAudioHandler;
+                PreferencesManager spyPrefs = org.mockito.Mockito.spy(new PreferencesManager(activity));
+                activity.preferencesManager = spyPrefs; 
+
+                spyPrefs.setCustomGreetingFilePath(fakeFilePath);
+                spyPrefs.setUseCustomGreetingFile(true); 
+
+                File nonExistentFile = new File(fakeFilePath);
+                if (nonExistentFile.exists()) {
+                    nonExistentFile.delete();
+                }
+                assertFalse("File should not exist for this test", nonExistentFile.exists());
+
+                Button playButton = activity.findViewById(R.id.play_generated_greeting_button);
+                TextView statusText = activity.findViewById(R.id.custom_greeting_status_text);
+                SwitchMaterial useCustomSwitch = activity.findViewById(R.id.use_custom_greeting_file_switch);
+
+                playButton.performClick();
+
+                verify(mockAudioHandler, never()).playAudioFile(any(Uri.class));
+                assertEquals("Status: Error - File not found.", statusText.getText().toString());
+                String expectedToastMsg = "Custom greeting file not found at path: " + fakeFilePath;
+                assertEquals(expectedToastMsg, ShadowToast.getTextOfLatestToast());
+
+                verify(spyPrefs).setCustomGreetingFilePath(isNull());
+                assertFalse(useCustomSwitch.isChecked());
+            });
+        }
+    }
+    // --- End Tests for Task 4.1.3 ---
 } 

@@ -5,9 +5,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.telecom.Call;
 import android.util.Log;
+import android.net.Uri;
 
 import com.example.vac.utils.PreferencesManager;
 
+import java.io.File;
 import java.util.Locale;
 
 /**
@@ -175,27 +177,59 @@ public class CallSessionManager implements
      * Start greeting the caller
      */
     public void startGreeting() {
-        String userName = preferencesManager.getUserName();
-        String fullGreetingText;
-        
-        // Construct the greeting message
-        // "Hi, you\'ve reached [User\'s Name]\'s phone. This is their virtual assistant. This call is being recorded. How can I help you?"
-        if (userName == null || userName.trim().isEmpty()) {
-            // Fallback if user name is not set
-            fullGreetingText = "Hi, you\'ve reached this phone. This is the virtual assistant. This call is being recorded. How can I help you?";
-        } else {
-            fullGreetingText = String.format(Locale.US, "Hi, you\'ve reached %s\'s phone. This is their virtual assistant. This call is being recorded. How can I help you?", userName);
-        }
-        try { Log.d(TAG, "Constructed greeting for AudioHandler: " + fullGreetingText); } catch (Throwable t) {}
+        boolean useCustomFile = preferencesManager.shouldUseCustomGreetingFile();
+        String customFilePath = null;
+        File greetingFile = null;
 
-        // Delegate to AudioHandler to play the greeting
-        if (audioHandler != null) {
-            currentState = State.GREETING; // Set state before playing
-            audioHandler.playGreeting(fullGreetingText);
+        if (useCustomFile) {
+            customFilePath = preferencesManager.getCustomGreetingFilePath();
+            if (customFilePath != null && !customFilePath.isEmpty()) {
+                greetingFile = new File(customFilePath);
+                if (!greetingFile.exists() || !greetingFile.canRead()) {
+                    try { Log.w(TAG, "Custom greeting file not found or not readable: " + customFilePath); } catch (Throwable t) {}
+                    greetingFile = null; // Invalidate if not usable
+                }
+            } else {
+                 try { Log.w(TAG, "'Use custom file' is true, but no path is stored."); } catch (Throwable t) {}
+            }
+        }
+
+        if (greetingFile != null) {
+            // Play the custom greeting file
+            try { Log.d(TAG, "Playing custom greeting file: " + greetingFile.getAbsolutePath()); } catch (Throwable t) {}
+            if (audioHandler != null) {
+                currentState = State.GREETING;
+                audioHandler.playAudioFile(Uri.fromFile(greetingFile));
+            } else {
+                try { Log.e(TAG, "AudioHandler is null, cannot play custom greeting file."); } catch (Throwable t) {}
+                if (listener != null) {
+                    listener.onSessionError(this, "AudioHandler not available for custom greeting file.");
+                }
+            }
         } else {
-            try { Log.e(TAG, "AudioHandler is null, cannot play greeting."); } catch (Throwable t) {}
-            if (listener != null) {
-                listener.onSessionError(this, "AudioHandler not available for greeting.");
+            // Fallback to live TTS
+            if (useCustomFile && customFilePath != null) {
+                 try { Log.i(TAG, "Falling back to live TTS because custom file was unusable or not found."); } catch (Throwable t) {}
+            } else if (useCustomFile) {
+                 try { Log.i(TAG, "Falling back to live TTS because no custom file path was set, despite preference."); } catch (Throwable t) {}
+            }
+            // Existing TTS logic
+            String userName = preferencesManager.getUserName();
+            String fullGreetingText;
+            if (userName == null || userName.trim().isEmpty()) {
+                fullGreetingText = "Hi, you\'ve reached this phone. This is the virtual assistant. This call is being recorded. How can I help you?";
+            } else {
+                fullGreetingText = String.format(Locale.US, "Hi, you\'ve reached %s\'s phone. This is their virtual assistant. This call is being recorded. How can I help you?", userName);
+            }
+            try { Log.d(TAG, "Constructed live TTS greeting: " + fullGreetingText); } catch (Throwable t) {}
+            if (audioHandler != null) {
+                currentState = State.GREETING;
+                audioHandler.playGreeting(fullGreetingText);
+            } else {
+                try { Log.e(TAG, "AudioHandler is null, cannot play live TTS greeting."); } catch (Throwable t) {}
+                if (listener != null) {
+                    listener.onSessionError(this, "AudioHandler not available for live TTS greeting.");
+                }
             }
         }
     }

@@ -192,14 +192,11 @@
 - **Test Scenarios (Unit Tests):**
     - `test_playGeneratedGreeting_fileExists()`: Verify `AudioHandler.playAudioFile()` is called with the correct file URI.
     - `test_playGeneratedGreeting_noFile()`: Verify playback is not attempted, and UI feedback occurs.
+    - `test_playGeneratedGreeting_fileNotFound()`: Verify appropriate feedback if file path is invalid.
 
 #### Task 4.1.4: Integrate Generated Greeting into Call Screening Flow
-- [ ] **Owner:** DEV
-- **Description:** Modify `CallSessionManager` (and potentially `AudioHandler`) to use the generated greeting file during actual call screening, IF one has been generated and is selected/enabled by the user.
-    - Add a preference (e.g., "use_custom_greeting_file" boolean) managed by `PreferencesManager`. This could be a `Switch` or `CheckBox` in `SetupActivity` near the new buttons.
-    - `CallSessionManager.startGreeting()` should check this preference.
-        - If true and file exists, instruct `AudioHandler` to play the file.
-        - Otherwise, fall back to the current live TTS greeting generation.
+- [x] **Owner:** DEV
+- **Description:** Modify `CallSessionManager` to use the generated audio file for the greeting if the user has enabled this option and the file exists. Otherwise, fall back to live TTS. This also involves adding a UI preference (e.g., a Switch) in `SetupActivity` to control this behavior.
 - **Acceptance Criteria:**
     - If "use custom greeting file" is enabled and file exists, `CallSessionManager` uses the file for the greeting during a call.
     - Otherwise, live TTS is used as before.

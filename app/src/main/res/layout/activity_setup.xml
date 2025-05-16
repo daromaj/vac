@@ -239,6 +239,14 @@
                 android:text="@string/play_generated_greeting_button_text"
                 android:layout_marginBottom="8dp"/>
 
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/use_custom_greeting_file_switch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/use_custom_greeting_file_switch_text"
+                android:layout_marginBottom="8dp"/>
+
             <TextView
                 android:id="@+id/custom_greeting_status_text"
                 android:layout_width="match_parent"

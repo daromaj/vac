@@ -48,4 +48,7 @@
     <string name="generate_greeting_file_button_text">Generate Greeting File</string>
     <string name="play_generated_greeting_button_text">Play Generated Greeting</string>
     <string name="custom_greeting_status_default">Status: No custom greeting generated.</string>
+    <string name="use_custom_greeting_file_switch_text">Use Generated Greeting File for Calls</string>
+    <string name="custom_greeting_status_greeting_empty">Status: Greeting text cannot be empty.</string>
+    <string name="greeting_text_cannot_be_empty">Greeting text cannot be empty. Please enter a greeting.</string>
 </resources>

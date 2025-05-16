@@ -25,6 +25,7 @@ import com.example.vac.databinding.ActivitySetupBinding;
 import com.example.vac.handlers.AudioHandler;
 import com.example.vac.utils.PreferencesManager;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import java.io.File;
 import java.util.List;
@@ -46,7 +47,7 @@ public class SetupActivity extends AppCompatActivity {
     };
 
     private ActivitySetupBinding binding;
-    private PreferencesManager preferencesManager;
+    PreferencesManager preferencesManager;
     private TextInputEditText nameInput;
     private TextInputEditText greetingInput;
     private TextView recordAudioPermissionStatus;
@@ -61,10 +62,11 @@ public class SetupActivity extends AppCompatActivity {
 
     // New UI elements for Custom Greeting File
     private Button generateGreetingFileButton;
-    private Button playGeneratedGreetingButton; // For future use in 4.1.3
+    private Button playGeneratedGreetingButton;
     private TextView customGreetingStatusText;
+    private SwitchMaterial useCustomGreetingFileSwitch;
 
-    private AudioHandler audioHandler;
+    AudioHandler audioHandler;
 
     // ActivityResultLauncher for RoleManager request
     private ActivityResultLauncher<Intent> roleActivityResultLauncher;
@@ -93,8 +95,10 @@ public class SetupActivity extends AppCompatActivity {
 
         // Initialize Custom Greeting File UI elements
         generateGreetingFileButton = binding.generateGreetingFileButton;
-        playGeneratedGreetingButton = binding.playGeneratedGreetingButton; // Ref for future
+        playGeneratedGreetingButton = binding.playGeneratedGreetingButton;
         customGreetingStatusText = binding.customGreetingStatusText;
+        useCustomGreetingFileSwitch = binding.useCustomGreetingFileSwitch;
+
         if (preferencesManager.hasCustomGreetingFile()) {
             String filePath = preferencesManager.getCustomGreetingFilePath();
             String fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
@@ -102,6 +106,15 @@ public class SetupActivity extends AppCompatActivity {
         } else {
             customGreetingStatusText.setText(getString(R.string.custom_greeting_status_default));
         }
+        // Load and set switch state
+        useCustomGreetingFileSwitch.setChecked(preferencesManager.shouldUseCustomGreetingFile());
+        // Set listener for the switch to save preference immediately
+        useCustomGreetingFileSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            preferencesManager.setUseCustomGreetingFile(isChecked);
+            Toast.makeText(SetupActivity.this, 
+                "Custom greeting file for calls: " + (isChecked ? "Enabled" : "Disabled"), 
+                Toast.LENGTH_SHORT).show();
+        });
 
         // Load saved preferences
         loadSavedPreferences();
@@ -183,6 +196,7 @@ public class SetupActivity extends AppCompatActivity {
     private void loadSavedPreferences() {
         String savedName = preferencesManager.getUserName();
         String savedGreeting = preferencesManager.getGreetingText();
+        boolean shouldUseCustomFile = preferencesManager.shouldUseCustomGreetingFile();
 
         if (!savedName.isEmpty()) {
             nameInput.setText(savedName);
@@ -195,11 +209,14 @@ public class SetupActivity extends AppCompatActivity {
             String defaultGreeting = getString(R.string.default_greeting);
             greetingInput.setText(String.format(defaultGreeting, savedName));
         }
+
+        useCustomGreetingFileSwitch.setChecked(shouldUseCustomFile);
     }
 
     private void saveUserSettings() {
         String userName = nameInput.getText() != null ? nameInput.getText().toString().trim() : "";
         String greetingText = greetingInput.getText() != null ? greetingInput.getText().toString().trim() : "";
+        boolean useGeneratedFile = useCustomGreetingFileSwitch.isChecked();
 
         if (userName.isEmpty()) {
             nameInput.setError("Please enter your name");
@@ -208,6 +225,7 @@ public class SetupActivity extends AppCompatActivity {
 
         preferencesManager.saveUserName(userName);
         preferencesManager.saveGreetingText(greetingText);
+        preferencesManager.setUseCustomGreetingFile(useGeneratedFile);
 
         Toast.makeText(this, R.string.settings_saved, Toast.LENGTH_SHORT).show();
     }
