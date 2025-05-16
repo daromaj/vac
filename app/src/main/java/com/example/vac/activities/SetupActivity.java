@@ -93,6 +93,10 @@ public class SetupActivity extends AppCompatActivity {
 
         if (!savedGreeting.isEmpty()) {
             greetingInput.setText(savedGreeting);
+        } else if (!savedName.isEmpty()) {
+            // Pre-fill default greeting if no custom greeting exists and name is available
+            String defaultGreeting = getString(R.string.default_greeting);
+            greetingInput.setText(String.format(defaultGreeting, savedName));
         }
     }
 

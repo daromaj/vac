@@ -17,6 +17,8 @@ import org.junit.runner.RunWith;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 
+import com.example.vac.utils.PreferencesManager;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.robolectric.Shadows.shadowOf;
@@ -25,21 +27,24 @@ import static org.robolectric.Shadows.shadowOf;
 @Config(sdk = {Config.OLDEST_SDK, Config.NEWEST_SDK}) // Test on a range of SDKs
 public class SetupActivityTest {
 
-    private SharedPreferences sharedPreferences;
+    private PreferencesManager preferencesManager;
     private String defaultGreetingFormat;
 
     @Before
     public void setUp() {
         Context context = RuntimeEnvironment.getApplication();
-        sharedPreferences = context.getSharedPreferences("VAC_prefs", Context.MODE_PRIVATE);
+        preferencesManager = new PreferencesManager(context);
         // Clear any previous preferences to ensure a clean state for each test
-        sharedPreferences.edit().clear().commit();
+        preferencesManager.saveUserName("");
+        preferencesManager.saveGreetingText("");
         // Load the default greeting format string from resources
         defaultGreetingFormat = context.getString(R.string.default_greeting);
     }
 
     @Test
     public void test_saveAndLoadUserName() {
+        final String testName = "Darek";
+        
         try (ActivityScenario<SetupActivity> scenario = ActivityScenario.launch(SetupActivity.class)) {
             scenario.onActivity(activity -> {
                 EditText nameInput = activity.findViewById(R.id.name_input);
@@ -48,12 +53,11 @@ public class SetupActivityTest {
                 assertNotNull("Name input field should not be null", nameInput);
                 assertNotNull("Save button should not be null", saveButton);
 
-                String testName = "Darek";
                 nameInput.setText(testName);
                 saveButton.performClick();
 
                 // Verify saved in SharedPreferences
-                assertEquals(testName, sharedPreferences.getString("userName", ""));
+                assertEquals(testName, preferencesManager.getUserName());
             });
 
             // Recreate activity to check if value is loaded
@@ -61,13 +65,16 @@ public class SetupActivityTest {
 
             scenario.onActivity(activity -> {
                 EditText nameInput = activity.findViewById(R.id.name_input);
-                assertEquals("Name should be loaded from SharedPreferences on recreate", testName, nameInput.getText().toString());
+                assertEquals("Name should be loaded from SharedPreferences on recreate",
+                    testName, nameInput.getText().toString());
             });
         }
     }
 
     @Test
     public void test_saveAndLoadGreetingText() {
+        final String testGreeting = "Yo, it's your assistant!";
+        
         try (ActivityScenario<SetupActivity> scenario = ActivityScenario.launch(SetupActivity.class)) {
             scenario.onActivity(activity -> {
                 EditText greetingInput = activity.findViewById(R.id.greeting_input);
@@ -76,12 +83,15 @@ public class SetupActivityTest {
                 assertNotNull("Greeting input field should not be null", greetingInput);
                 assertNotNull("Save button should not be null", saveButton);
 
-                String testGreeting = "Yo, it's your assistant!";
+                // Clear any default greeting that might be pre-filled
+                greetingInput.setText("");
+                
                 greetingInput.setText(testGreeting);
                 saveButton.performClick();
 
                 // Verify saved in SharedPreferences
-                assertEquals(testGreeting, sharedPreferences.getString("customGreeting", ""));
+                assertEquals("Saved greeting should match exactly",
+                    testGreeting, preferencesManager.getGreetingText());
             });
 
             // Recreate activity to check if value is loaded
@@ -89,7 +99,8 @@ public class SetupActivityTest {
 
             scenario.onActivity(activity -> {
                 EditText greetingInput = activity.findViewById(R.id.greeting_input);
-                assertEquals("Greeting should be loaded from SharedPreferences on recreate", testGreeting, greetingInput.getText().toString());
+                assertEquals("Greeting should be loaded from SharedPreferences on recreate",
+                    testGreeting, greetingInput.getText().toString());
             });
         }
     }
@@ -97,10 +108,10 @@ public class SetupActivityTest {
     @Test
     public void test_defaultGreetingIsUsed() {
          // Ensure no custom greeting is set
-        sharedPreferences.edit().remove("customGreeting").commit();
-        // Set a user name to ensure the default greeting format is correctly applied
-        String userName = "TestUser";
-        sharedPreferences.edit().putString("userName", userName).commit();
+         preferencesManager.saveGreetingText("");
+         // Set a user name to ensure the default greeting format is correctly applied
+         String userName = "TestUser";
+         preferencesManager.saveUserName(userName);
 
         try (ActivityScenario<SetupActivity> scenario = ActivityScenario.launch(SetupActivity.class)) {
             scenario.onActivity(activity -> {
@@ -123,8 +134,8 @@ public class SetupActivityTest {
 
                 // Let's check if the custom greeting in SharedPreferences is indeed empty or null
                 // and the loaded user name is correct, which implies default greeting logic would engage.
-                assertEquals("Custom greeting in preferences should be empty for default to be used", "", sharedPreferences.getString("customGreeting", ""));
-                assertEquals("User name should be loaded correctly", userName, sharedPreferences.getString("userName", ""));
+                assertEquals("Custom greeting in preferences should be empty for default to be used", "", preferencesManager.getGreetingText());
+                assertEquals("User name should be loaded correctly", userName, preferencesManager.getUserName());
 
                 // If the EditText for greeting is supposed to be pre-filled with the *formatted* default greeting,
                 // then this part of the test would look like:
@@ -132,7 +143,9 @@ public class SetupActivityTest {
                 // assertEquals("Greeting input should show the formatted default greeting", expectedDefaultGreeting, greetingInput.getText().toString());
                 // However, SetupActivity currently only loads saved custom greeting into this field.
                 // The test will verify that the *saved custom greeting* is empty.
-                assertEquals("Greeting input should be empty if no custom greeting saved", "", greetingInput.getText().toString());
+                String expectedDefaultGreeting = String.format(activity.getString(R.string.default_greeting), userName);
+                assertEquals("Greeting input should show formatted default greeting when no custom greeting exists",
+                    expectedDefaultGreeting, greetingInput.getText().toString());
             });
         }
     }
