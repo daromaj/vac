@@ -51,4 +51,18 @@
     <string name="use_custom_greeting_file_switch_text">Use Generated Greeting File for Calls</string>
     <string name="custom_greeting_status_greeting_empty">Status: Greeting text cannot be empty.</string>
     <string name="greeting_text_cannot_be_empty">Greeting text cannot be empty. Please enter a greeting.</string>
+
+    <string name="action_deny">Deny</string>
+
+    <string name="notification_title_screening">Screening Incoming Call</string>
+    <string name="notification_message_default">Please wait...</string>
+    <string name="notification_message_listening">Listening to caller...</string>
+    <string name="notification_action_take_over">Take Over Call</string>
+    <string name="notification_action_hang_up">Hang Up (End Screening)</string>
+
+    <string name="notification_title_user_took_over">Call Transferred</string>
+    <string name="notification_message_user_took_over">You are now connected through your dialer.</string>
+    <string name="notification_message_call_ended">Call has ended.</string>
+
+    <string name="follow_up_message_tts">Dziękuję. Upewnię się, że Twoja wiadomość zostanie dostarczona. Proszę zostaw wiadomość po sygnale.</string>
 </resources>

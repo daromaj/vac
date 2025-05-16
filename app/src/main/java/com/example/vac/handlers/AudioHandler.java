@@ -255,9 +255,7 @@ public class AudioHandler {
             stopPlayback();
         }
         
-        // In a more sophisticated app, this would be customizable, but for MVP it's hardcoded
-        String followUpText = "Thank you. I'll make sure your message gets delivered. " +
-                             "Please leave a message after the beep.";
+        String followUpText = context.getString(R.string.follow_up_message_tts);
         
         // Request audio focus and play TTS
         if (requestAudioFocus()) {

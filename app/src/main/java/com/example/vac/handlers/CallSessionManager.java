@@ -9,6 +9,7 @@ import android.util.Log;
 import android.net.Uri;
 import android.os.Handler;
 
+import com.example.vac.R;
 import com.example.vac.utils.PreferencesManager;
 
 import java.io.File;
@@ -65,12 +66,10 @@ public class CallSessionManager implements
         this.listener = listener;
         this.notificationHandler = notificationHandler;
         
-        // Initialize PreferencesManager using overridable method
         this.preferencesManager = createPreferencesManager(context);
-        
         this.sttTimeoutHandler = new Handler(Looper.getMainLooper());
         
-        // Initialize components using overridable methods
+        // Initialize components, including AudioHandler
         initializeComponents();
     }
     
@@ -121,51 +120,36 @@ public class CallSessionManager implements
      * Start the call screening process
      */
     public void startScreening() {
-        try { Log.d(TAG, "Starting call screening process"); } catch (Throwable t) {}
+        try { Log.d(TAG, "Starting call screening process for: " + callDetails.getHandle().getSchemeSpecificPart()); } catch (Throwable t) {}
+        currentState = State.GREETING;
         
-        PendingIntent takeOverPendingIntent = createTakeOverPendingIntent();
+        // CallScreeningServiceImpl is responsible for the initial notification and foreground service start.
+        // This class will only update the notification as states change.
+        // PendingIntent takeOverPendingIntent = createTakeOverPendingIntent(); 
+        // notificationHandler.showScreeningNotification(
+        // "Starting call assistant...", 
+        // takeOverPendingIntent, 
+        // null // No hangup from here initially
+        // );
         
-        notificationHandler.showScreeningNotification(
-                "Starting call assistant...", 
-                takeOverPendingIntent);
-        
-        // Start with greeting
         startGreeting();
     }
     
     /**
-     * Stop the call screening process
-     * 
-     * @param isTakeOver Whether this is because the user took over
+     * Stop the call screening process (e.g. call disconnected, screening finished).
+     * This method is for non-user-initiated stops.
+     * For user take-over, see {@link #userTakesOver()}.
      */
-    public void stopScreening(boolean isTakeOver) {
-        try { Log.d(TAG, "Stopping call screening process, takeOver=" + isTakeOver); } catch (Throwable t) {}
-        
-        // Remove any pending STT timeout callbacks
-        if (sttTimeoutHandler != null && sttTimeoutRunnable != null) {
-            sttTimeoutHandler.removeCallbacks(sttTimeoutRunnable);
+    public void stopScreening() {
+        Log.d(TAG, "Stopping call screening process (general stop). Current state: " + currentState);
+        if (currentState == State.ENDED) {
+            Log.d(TAG, "Already in ENDED state. Ignoring stopScreening call.");
+            return;
         }
-
-        // Set state to ENDED
-        currentState = State.ENDED;
-        
-        // Release all resources
-        if (audioHandler != null) {
-            audioHandler.stopPlayback();
-            audioHandler.release();
-            audioHandler = null;
-        }
-        
-        if (speechRecognitionHandler != null) {
-            speechRecognitionHandler.stopListening();
-            speechRecognitionHandler.release();
-            speechRecognitionHandler = null;
-        }
-        
-        if (messageRecorderHandler != null) {
-            messageRecorderHandler.stopRecording();
-            messageRecorderHandler.release();
-            messageRecorderHandler = null;
+        releaseInternal(false); // false indicates not due to user takeover
+        currentState = State.ENDED; // Set state after release, or within releaseInternal
+        if (listener != null) {
+            listener.onSessionCompleted(this);
         }
     }
     
@@ -173,35 +157,18 @@ public class CallSessionManager implements
      * User takes over the call
      */
     public void userTakesOver() {
-        try { Log.d(TAG, "User is taking over the call"); } catch (Throwable t) {}
-        
+        Log.d(TAG, "User is taking over the call. Current state: " + currentState);
         if (currentState == State.ENDED || userHasTakenOver) {
             Log.d(TAG, "User already took over or session ended. Ignoring userTakesOver call.");
             return;
         }
-        
-        // Remove any pending STT timeout callbacks
-        if (sttTimeoutHandler != null && sttTimeoutRunnable != null) {
-            sttTimeoutHandler.removeCallbacks(sttTimeoutRunnable);
-        }
 
-        // Set state and flag
+        // Set state and flag immediately
         currentState = State.USER_TAKEOVER;
         userHasTakenOver = true;
-        
-        // Stop audio playback
-        if (audioHandler != null) {
-            audioHandler.stopPlayback();
-        }
-        
-        // Stop speech recognition
-        if (speechRecognitionHandler != null) {
-            speechRecognitionHandler.stopListening();
-        }
-        
-        // Note: we do NOT stop message recording yet - it continues until call ends
-        
-        // Notify listener
+
+        releaseInternal(true); // true indicates due to user takeover
+
         if (listener != null) {
             listener.onUserTookOver(this);
         }
@@ -264,14 +231,17 @@ public class CallSessionManager implements
      * Start listening for the caller's response
      */
     private void startListeningForCaller() {
+        try { Log.i(TAG, "Transitioning to LISTENING state."); } catch (Throwable t) {}
         currentState = State.LISTENING;
-        try { Log.d(TAG, "Transitioned to LISTENING state."); } catch (Throwable t) {}
-        
-        // Update notification
-        notificationHandler.updateNotification("Listening to caller...");
-        
-        // Start speech recognition
-        speechRecognitionHandler.startListening("pl-PL");
+        // Update notification to indicate listening, no actions initially
+        notificationHandler.updateNotification(
+            context.getString(R.string.notification_title_screening),
+            "Listening to caller...", 
+            null 
+        );
+        if (speechRecognitionHandler != null) {
+            speechRecognitionHandler.startListening("pl-PL");
+        }
     }
     
     /**
@@ -307,10 +277,16 @@ public class CallSessionManager implements
     
     @Override
     public void onPlaybackCompleted() {
-        try { Log.d(TAG, "Audio playback completed (via AudioHandler)"); } catch (Throwable t) {}
+        Log.d(TAG, "onPlaybackCompleted. Current state: " + currentState);
         if (currentState == State.GREETING) {
-            try { Log.i(TAG, "Greeting playback completed. Proceeding to listen for caller."); } catch (Throwable t) {}
-            startListeningForCaller(); 
+            Log.d(TAG, "Greeting playback completed. Starting STT.");
+            if (notificationHandler != null) {
+                // Ensure context is available for getString
+                String listeningMessage = (context != null) ? context.getString(R.string.notification_message_listening) : "Listening to caller...";
+                notificationHandler.updateNotificationMessage(listeningMessage);
+            }
+            speechRecognitionHandler.startListening("pl-PL");
+            currentState = State.LISTENING;
         } else if (currentState == State.RESPONDING) {
             try { Log.i(TAG, "Follow-up response playback completed. Proceeding to record message."); } catch (Throwable t) {}
             startRecordingMessage();
@@ -325,16 +301,20 @@ public class CallSessionManager implements
         if (listener != null) {
             listener.onSessionError(this, "Audio playback error: " + errorMessage);
         }
-        stopScreening(false); // Stop the session on playback error
+        stopScreening(); // Stop the session on playback error
     }
     
     // SpeechRecognitionCallbacks implementation
     
     @Override
     public void onReadyForSpeech() {
-        try { Log.d(TAG, "Speech recognizer ready for speech."); } catch (Throwable t) {}
-        // Update notification to indicate listening
-        notificationHandler.updateNotification("Listening...");
+        try { Log.i(TAG, "Speech Recognizer ready."); } catch (Throwable t) {}
+        // Optionally update notification
+        notificationHandler.updateNotification(
+            context.getString(R.string.notification_title_screening),
+            "Listening...", 
+            null
+        );
     }
     
     @Override
@@ -393,29 +373,14 @@ public class CallSessionManager implements
     }
     
     @Override
-    public void onSpeechError(String errorMessage, int errorCode) {
-        try { Log.e(TAG, "Speech recognition error: " + errorMessage + ", code: " + errorCode + ". Current state: " + currentState); } catch (Throwable t) {}
-        
-        if (userHasTakenOver) {
-            Log.d(TAG, "User has taken over, ignoring speech error.");
-            return;
-        }
-
-        // Cancel any pending silence timeout on error.
-        if (sttTimeoutHandler != null && sttTimeoutRunnable != null) {
-            sttTimeoutHandler.removeCallbacks(sttTimeoutRunnable);
-            Log.d(TAG, "Cancelled STT silence timeout due to speech error.");
-        }
-
-        // Handle speech errors, e.g., network issues, no match, etc.
-        // For MVP, play follow-up and move to message recording on any error during listening.
-        if (currentState == State.LISTENING) {
-            try { Log.w(TAG, "Speech error in LISTENING state. Playing follow-up and preparing for message."); } catch (Throwable t) {}
-            playFollowUpResponse(); 
-        } else if (listener != null) {
-            // If error occurs outside of active listening (e.g., init error), notify session listener.
-            listener.onSessionError(this, "Speech recognition error: " + errorMessage);
-            stopScreening(false);
+    public void onSpeechError(String error, int errorCode) {
+        Log.e(TAG, "onSpeechError: " + error + ", code: " + errorCode);
+        sttTimeoutHandler.removeCallbacks(sttTimeoutRunnable);
+        if (currentState == State.LISTENING || currentState == State.INITIALIZING) {
+            audioHandler.playFollowUpResponse();
+            currentState = State.RESPONDING;
+        } else {
+            Log.w(TAG, "Speech error received but not in a state to play follow-up. Current state: " + currentState);
         }
     }
     
@@ -424,40 +389,60 @@ public class CallSessionManager implements
     @Override
     public void onRecordingStarted() {
         try { Log.i(TAG, "Message recording started."); } catch (Throwable t) {}
-        notificationHandler.updateNotification("Recording message...");
+        currentState = State.RECORDING_MESSAGE;
+        notificationHandler.updateNotification(
+            context.getString(R.string.notification_title_screening),
+            "Recording message...", 
+            null
+        );
     }
     
     @Override
     public void onRecordingStopped(String filePath, boolean successfullyCompleted) {
-        if (successfullyCompleted) {
-            try { Log.i(TAG, "Message recording stopped. File saved at: " + filePath); } catch (Throwable t) {}
-            notificationHandler.updateNotification("Message recorded: " + filePath.substring(filePath.lastIndexOf('/') + 1));
+        try { Log.i(TAG, "Message recording stopped. File: " + filePath + ", Success: " + successfullyCompleted); } catch (Throwable t) {}
+        if (successfullyCompleted && filePath != null) {
+            notificationHandler.updateNotification(
+                context.getString(R.string.notification_title_screening),
+                "Message recorded: " + new File(filePath).getName(), 
+                null
+            );
+            // TODO: Handle the recorded message (e.g., save path to DB, notify user)
         } else {
-            try { Log.e(TAG, "Message recording stopped but failed to save or limit reached early."); } catch (Throwable t) {}
-            notificationHandler.updateNotification("Recording failed or stopped.");
+            notificationHandler.updateNotification(
+                context.getString(R.string.notification_title_screening),
+                "Recording failed or stopped.", 
+                null
+            );
         }
-        // For MVP, session ends after recording stops (either successfully or due to error/limit)
-        if (listener != null) {
-            listener.onSessionCompleted(this);
-        }
-        stopScreening(false); // Ensure session cleanup
+        // After recording, the session typically ends.
+        stopScreening(); 
     }
     
     @Override
     public void onRecordingError(String errorMessage) {
-        try { Log.e(TAG, "Message recording error: " + errorMessage); } catch (Throwable t) {}
-        notificationHandler.updateNotification("Recording error: " + errorMessage);
+        Log.e(TAG, "MessageRecorderListener: onRecordingError: " + errorMessage);
+        // Potentially stop other operations and inform the user or end the call.
+        // For now, notify the main listener about the error.
+        releaseInternal(false); // Or a specific error state cleanup
+        currentState = State.ENDED; // Or a new ERROR state
         if (listener != null) {
             listener.onSessionError(this, "Recording error: " + errorMessage);
         }
-        stopScreening(false); // Session ends on recording error
     }
     
     @Override
     public void onRecordingLimitReached() {
-        try { Log.i(TAG, "Message recording limit reached."); } catch (Throwable t) {}
-        notificationHandler.updateNotification("Recording limit reached. Saving message.");
-        // MessageRecorderHandler should stop recording automatically and onRecordingStopped will be called.
+        try { Log.w(TAG, "Recording time limit reached."); } catch (Throwable t) {}
+        notificationHandler.updateNotification(
+            context.getString(R.string.notification_title_screening),
+            "Recording limit reached. Saving message.", 
+            null
+        );
+        if (messageRecorderHandler != null) {
+            messageRecorderHandler.stopRecording(); // Ensure recording is stopped
+            messageRecorderHandler.release();
+            messageRecorderHandler = null;
+        }
     }
     
     // Getter for testing purposes
@@ -475,10 +460,77 @@ public class CallSessionManager implements
         void onTranscriptionUpdate(String latestTranscript);
     }
 
-    public void releaseInternal() {
+    /**
+     * Instructs the system to hang up the call. This should typically be used when the assistant
+     * determines the call should not proceed (e.g., spam) or when the user initiates a hang-up
+     * via the notification.
+     * This method will also trigger the cleanup of the current session.
+     */
+    public void hangUpCall() {
+        Log.i(TAG, "hangUpCall invoked. Current state: " + currentState);
+        if (currentState == State.ENDED || userHasTakenOver) {
+            Log.d(TAG, "Call already ended or user took over. Ignoring hangUpCall.");
+            return;
+        }
+
+        // Inform the listener (CallScreeningServiceImpl) that a hang-up is requested.
+        // The listener is then responsible for interacting with the Telecom framework
+        // to actually reject or disconnect the call.
+        if (listener != null) {
+            // We don't have a specific callback for hangup, so we use onSessionCompleted
+            // or onSessionError. For now, let's consider it a form of session completion
+            // initiated by us.
+            // CallScreeningServiceImpl will need to see userHasTakenOver = false and then issue a disallow/reject.
+            // Alternatively, add a specific listener.onHangUpRequested(this) if more direct control is needed.
+             Log.d(TAG, "Requesting hangup; will call stopScreening which notifies onSessionCompleted.");
+        }
+
+        // The actual call to Telecom to disallow/reject should happen in CallScreeningServiceImpl
+        // after it receives onSessionCompleted (and checks userHasTakenOver is false).
+        // For now, CallSessionManager just cleans itself up.
+        stopScreening(); // This will call releaseInternal and notify onSessionCompleted.
+    }
+
+    // Make this public so CallScreeningServiceImpl can call it if a session needs premature release.
+    public void releaseInternal(boolean dueToUserTakeover) {
+        try { Log.d(TAG, "Releasing internal resources. Due to user takeover: " + dueToUserTakeover + ". Current state: " + currentState); } catch (Throwable t) {}
+
+        // Stop any pending STT timeout callbacks
         if (sttTimeoutHandler != null && sttTimeoutRunnable != null) {
             sttTimeoutHandler.removeCallbacks(sttTimeoutRunnable);
+            // sttTimeoutHandler = null; // Don't null if it might be reused, but CallSessionManager is single-use.
+            // sttTimeoutRunnable = null;
         }
-        // ... other potential handler-specific cleanup before SUT fields are nulled ...
+
+        // Stop and release AudioHandler
+        if (audioHandler != null) {
+            audioHandler.stopPlayback();
+            if (!dueToUserTakeover || currentState == State.USER_TAKEOVER) { // Release fully unless specific conditions
+                audioHandler.release();
+                audioHandler = null;
+            }
+        }
+
+        // Stop and release SpeechRecognitionHandler
+        if (speechRecognitionHandler != null) {
+            speechRecognitionHandler.stopListening();
+             if (!dueToUserTakeover || currentState == State.USER_TAKEOVER) { // Release fully
+                speechRecognitionHandler.release();
+                speechRecognitionHandler = null;
+            }
+        }
+
+        // Stop and release MessageRecorderHandler
+        if (messageRecorderHandler != null) {
+            messageRecorderHandler.stopRecording(); // Ensure recording is stopped
+            if (!dueToUserTakeover || currentState == State.USER_TAKEOVER) { // Release fully
+                 messageRecorderHandler.release();
+                 messageRecorderHandler = null;
+            }
+        }
+        
+        Log.d(TAG, "releaseInternal completed.");
+        // Note: context and listener are not nulled here as they are final and passed in.
+        // The manager instance itself should be dereferenced by its owner when no longer needed.
     }
 } 

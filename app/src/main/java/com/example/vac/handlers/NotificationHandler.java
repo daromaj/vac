@@ -7,6 +7,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
 
@@ -20,11 +21,11 @@ public class NotificationHandler {
     public static final int NOTIFICATION_ID = 1001;
     private static final String CHANNEL_ID = "VAC_CALL_SCREENING_CHANNEL";
     private static final String CHANNEL_NAME = "VAC Call Screening";
-    private static final String ACTION_TAKE_OVER = "com.example.vac.TAKE_OVER";
     
     private final Context context;
     private final NotificationManager notificationManager;
     private NotificationCompat.Builder notificationBuilder;
+    private Notification currentNotification;
     
     public NotificationHandler(Context context) {
         this.context = context;
@@ -51,30 +52,45 @@ public class NotificationHandler {
      * 
      * @param initialMessage The initial message to display
      * @param takeOverPendingIntent The PendingIntent to execute when user takes over
+     * @param hangUpPendingIntent The PendingIntent to execute when user hangs up
      * @return The created Notification
      */
-    public Notification showScreeningNotification(String initialMessage, PendingIntent takeOverPendingIntent) {
+    public Notification showScreeningNotification(String initialMessage, PendingIntent takeOverPendingIntent, PendingIntent hangUpPendingIntent) {
         // Create the notification builder
         notificationBuilder = new NotificationCompat.Builder(context, CHANNEL_ID)
-                .setContentTitle("Call Assistant Active")
+                .setContentTitle(context.getString(R.string.notification_title_screening))
                 .setContentText(initialMessage)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setOngoing(true);
+                .setOngoing(true)
+                .setOnlyAlertOnce(true);
         
         // Add the take over action if the intent is provided
         if (takeOverPendingIntent != null) {
             notificationBuilder.addAction(
-                    android.R.drawable.ic_menu_call,
-                    "Take Over Call",
-                    takeOverPendingIntent
+                    new NotificationCompat.Action(
+                        0,
+                        context.getString(R.string.notification_action_take_over),
+                        takeOverPendingIntent
+                    )
             );
         }
         
-        Notification notification = notificationBuilder.build();
-        notificationManager.notify(NOTIFICATION_ID, notification);
+        // Add the hang up action if the intent is provided
+        if (hangUpPendingIntent != null) {
+            notificationBuilder.addAction(
+                    new NotificationCompat.Action(
+                        0,
+                        context.getString(R.string.notification_action_hang_up),
+                        hangUpPendingIntent
+                    )
+            );
+        }
         
-        return notification;
+        currentNotification = notificationBuilder.build();
+        notificationManager.notify(NOTIFICATION_ID, currentNotification);
+        
+        return currentNotification;
     }
     
     /**
@@ -92,20 +108,48 @@ public class NotificationHandler {
     }
     
     /**
-     * Update the notification with a new message.
-     * 
-     * @param message The new message to display
+     * Update the notification with a new title, message, and optional actions.
+     *
+     * @param title The new title for the notification.
+     * @param message The new message to display.
+     * @param actions A list of NotificationCompat.Action to add. Clears existing actions if null or empty.
      */
-    public void updateNotification(String message) {
+    public void updateNotification(String title, String message, java.util.List<NotificationCompat.Action> actions) {
         if (notificationBuilder == null) {
+            // Optionally, recreate the builder if we want to allow updating a cancelled notification
+            // For now, assume it only updates an existing, visible notification's builder
             return;
         }
-        
-        notificationBuilder.setContentText(message);
-        // Clear any action buttons
+
+        if (title != null) {
+            notificationBuilder.setContentTitle(title);
+        }
+        if (message != null) {
+            notificationBuilder.setContentText(message);
+        }
+
+        // Clear existing actions before adding new ones
         notificationBuilder.mActions.clear();
+        if (actions != null) {
+            for (NotificationCompat.Action action : actions) {
+                notificationBuilder.addAction(action);
+            }
+        }
         
-        notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build());
+        // Ensure ongoing flag is appropriate. If actions are removed, it might not need to be ongoing.
+        // For simplicity, keeping it as is, but this could be refined.
+        // notificationBuilder.setOngoing(actions != null && !actions.isEmpty());
+
+        currentNotification = notificationBuilder.build();
+        notificationManager.notify(NOTIFICATION_ID, currentNotification);
+    }
+    
+    /**
+     * Get the currently built notification.
+     * @return The current Notification object, or null if not built.
+     */
+    public Notification getCurrentNotification() {
+        return currentNotification;
     }
     
     /**
@@ -114,5 +158,26 @@ public class NotificationHandler {
     public void cancelNotification() {
         notificationManager.cancel(NOTIFICATION_ID);
         notificationBuilder = null;
+    }
+
+    public NotificationCompat.Builder getNotificationBuilder() {
+        return notificationBuilder;
+    }
+
+    /**
+     * Updates only the content message of the current notification, preserving title and actions.
+     * If no notification is currently shown (builder is null), this does nothing.
+     *
+     * @param newMessage The new message to display.
+     */
+    public void updateNotificationMessage(String newMessage) {
+        if (notificationBuilder == null) {
+            Log.w(TAG, "updateNotificationMessage called but notificationBuilder is null. Cannot update.");
+            return;
+        }
+        notificationBuilder.setContentText(newMessage);
+        currentNotification = notificationBuilder.build();
+        notificationManager.notify(NOTIFICATION_ID, currentNotification);
+        Log.d(TAG, "Notification message updated: " + newMessage);
     }
 } 

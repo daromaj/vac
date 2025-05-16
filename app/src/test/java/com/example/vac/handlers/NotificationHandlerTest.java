@@ -67,7 +67,7 @@ public class NotificationHandlerTest {
     public void showScreeningNotification_displaysNotification_withAction() {
         ShadowNotificationManager shadowManager = getShadowManager();
         String initialMessage = "Screening call...";
-        Notification notification = notificationHandler.showScreeningNotification(initialMessage, mockPendingIntent);
+        Notification notification = notificationHandler.showScreeningNotification(initialMessage, mockPendingIntent, null);
 
         assertNotNull("Notification should not be null", notification);
         assertEquals("Call Assistant Active", Shadows.shadowOf(notification).getContentTitle().toString());
@@ -85,7 +85,7 @@ public class NotificationHandlerTest {
     public void showScreeningNotification_displaysNotification_withoutAction() {
         ShadowNotificationManager shadowManager = getShadowManager();
         String initialMessage = "Starting up...";
-        Notification notification = notificationHandler.showScreeningNotification(initialMessage, null);
+        Notification notification = notificationHandler.showScreeningNotification(initialMessage, null, null);
 
         assertNotNull(notification);
         assertEquals(initialMessage, Shadows.shadowOf(notification).getContentText().toString());
@@ -99,7 +99,7 @@ public class NotificationHandlerTest {
     public void updateTranscription_updatesNotificationText() {
         ShadowNotificationManager shadowManager = getShadowManager();
         String initialMessage = "Screening...";
-        notificationHandler.showScreeningNotification(initialMessage, mockPendingIntent);
+        notificationHandler.showScreeningNotification(initialMessage, mockPendingIntent, null);
 
         String transcribedText = "Hello, this is a test.";
         notificationHandler.updateTranscription(transcribedText);
@@ -115,10 +115,10 @@ public class NotificationHandlerTest {
     public void updateNotification_updatesTextAndClearsActions() {
         ShadowNotificationManager shadowManager = getShadowManager();
         String initialMessage = "Listening...";
-        notificationHandler.showScreeningNotification(initialMessage, mockPendingIntent);
+        notificationHandler.showScreeningNotification(initialMessage, mockPendingIntent, null);
 
         String newMessage = "Call taken over.";
-        notificationHandler.updateNotification(newMessage);
+        notificationHandler.updateNotification(context.getString(R.string.notification_title_screening), newMessage, null);
 
         Notification postedNotification = shadowManager.getNotification(NOTIFICATION_ID);
         assertNotNull(postedNotification);
@@ -130,7 +130,7 @@ public class NotificationHandlerTest {
     @Test
     public void cancelNotification_removesNotification() {
         ShadowNotificationManager shadowManager = getShadowManager();
-        notificationHandler.showScreeningNotification("Test", null);
+        notificationHandler.showScreeningNotification("Test", null, null);
         assertTrue("Notification should be present before cancel", shadowManager.size() > 0);
 
         notificationHandler.cancelNotification();

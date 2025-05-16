@@ -258,7 +258,7 @@
     - `test_notificationReflectsUserTakeOverState()`.
 
 ### Task 5.4: User Take-Over Call Logic
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** Implement the full "User Takes Over Call" functionality as detailed in `design.md`. This involves `CallScreeningServiceImpl` handling the notification action and instructing `CallSessionManager`.
 - **Acceptance Criteria:**
     - Tapping "Take Over Call" button triggers `CallSessionManager.userTakesOver()`.
