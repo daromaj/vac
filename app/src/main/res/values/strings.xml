@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">VAC</string>
+    <string name="app_name">Virtual Call Screening Assistant</string>
     
     <!-- Setup Screen -->
     <string name="setup_title">Virtual Assistant Setup</string>
@@ -73,4 +73,9 @@
     
     <!-- Menu items -->
     <string name="menu_view_messages">View Messages</string>
+
+    <string name="message_playback_title">Message Playback</string>
+    <string name="search_transcriptions">Search transcriptions…</string>
+    <string name="play_pause">Play/Pause</string>
+    <string name="share_transcription">Share Transcription</string>
 </resources>

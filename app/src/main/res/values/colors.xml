@@ -7,4 +7,14 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="primary">#1976D2</color>
+    <color name="primary_dark">#1565C0</color>
+    <color name="accent">#FF4081</color>
+    
+    <!-- Transcription colors -->
+    <color name="assistant_background">#E3F2FD</color>
+    <color name="user_background">#E8F5E9</color>
+    <color name="caller_background">#FFF3E0</color>
+    <color name="default_background">#FFFFFF</color>
+    <color name="highlight">#FF4081</color>
 </resources>
