@@ -59,6 +59,9 @@ dependencies {
     implementation("androidx.core:core:1.12.0")
     implementation("androidx.annotation:annotation:1.7.1")
     
+    // Audio recording
+    implementation("androidx.media:media:1.7.0")
+    
     // Testing
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.11.1")
@@ -66,6 +69,7 @@ dependencies {
     testImplementation("androidx.test:runner:1.5.2")
     testImplementation("androidx.test:rules:1.5.0")
     testImplementation("androidx.test.ext:junit:1.1.5")
+    testImplementation("org.mockito:mockito-core:5.10.0")
     
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
