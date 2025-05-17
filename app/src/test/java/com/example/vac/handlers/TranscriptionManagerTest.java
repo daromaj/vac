@@ -1,12 +1,11 @@
 package com.example.vac.handlers;
 
 import android.content.Context;
-import android.content.ContextWrapper;
 
 import androidx.test.core.app.ApplicationProvider;
 
 import com.example.vac.models.TranscriptionData;
-import com.google.gson.Gson;
+import com.example.vac.models.TranscriptionData.SpeakerType;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -25,67 +24,82 @@ import static org.junit.Assert.assertTrue;
 @Config(sdk = 30)
 public class TranscriptionManagerTest {
     private TranscriptionManager transcriptionManager;
-    private File testFile;
+    private Context context;
+    private File transcriptionsFile;
 
     @Before
     public void setUp() {
-        Context context = ApplicationProvider.getApplicationContext();
+        context = ApplicationProvider.getApplicationContext();
         transcriptionManager = new TranscriptionManager(context);
-        testFile = new File(context.getFilesDir(), "transcriptions.json");
-        if (testFile.exists()) {
-            testFile.delete();
+        transcriptionsFile = new File(context.getFilesDir(), "transcriptions.json");
+        if (transcriptionsFile.exists()) {
+            transcriptionsFile.delete();
         }
     }
 
     @Test
-    public void testSaveAndRetrieveTranscription() {
-        // Save a transcription
+    public void testSaveTranscriptionSnippet() {
         String callId = "test-call-1";
         String text = "Hello, this is a test";
         long timestamp = System.currentTimeMillis();
-        TranscriptionData.SpeakerType speakerType = TranscriptionData.SpeakerType.CALLER;
+        SpeakerType speakerType = SpeakerType.CALLER;
 
         boolean saved = transcriptionManager.saveTranscriptionSnippet(callId, text, timestamp, speakerType);
-        assertTrue("Transcription should be saved successfully", saved);
+        assertTrue("Should save transcription successfully", saved);
+        assertTrue("Transcriptions file should exist", transcriptionsFile.exists());
+    }
 
-        // Retrieve the transcription
-        List<TranscriptionData> transcriptions = transcriptionManager.getTranscriptionForCall(callId);
-        assertEquals("Should retrieve exactly one transcription", 1, transcriptions.size());
+    @Test
+    public void testGetTranscriptionForCall() {
+        // Save multiple transcriptions for different calls
+        String callId1 = "test-call-1";
+        String callId2 = "test-call-2";
+        
+        transcriptionManager.saveTranscriptionSnippet(callId1, "First message", 1000, SpeakerType.CALLER);
+        transcriptionManager.saveTranscriptionSnippet(callId2, "Second message", 2000, SpeakerType.USER);
+        transcriptionManager.saveTranscriptionSnippet(callId1, "Third message", 3000, SpeakerType.ASSISTANT);
 
-        TranscriptionData retrieved = transcriptions.get(0);
-        assertEquals("Call ID should match", callId, retrieved.getCallId());
-        assertEquals("Text should match", text, retrieved.getText());
-        assertEquals("Timestamp should match", timestamp, retrieved.getTimestamp());
-        assertEquals("Speaker type should match", speakerType, retrieved.getSpeakerType());
+        // Get transcriptions for callId1
+        List<TranscriptionData> transcriptions = transcriptionManager.getTranscriptionForCall(callId1);
+        assertEquals("Should return correct number of transcriptions", 2, transcriptions.size());
+        assertEquals("First transcription should be from caller", SpeakerType.CALLER, transcriptions.get(0).getSpeakerType());
+        assertEquals("Second transcription should be from assistant", SpeakerType.ASSISTANT, transcriptions.get(1).getSpeakerType());
     }
 
     @Test
     public void testSearchTranscriptions() {
-        // Save multiple transcriptions
-        String callId1 = "test-call-1";
-        String callId2 = "test-call-2";
-        
-        transcriptionManager.saveTranscriptionSnippet(callId1, "Hello world", System.currentTimeMillis(), TranscriptionData.SpeakerType.CALLER);
-        transcriptionManager.saveTranscriptionSnippet(callId2, "Goodbye world", System.currentTimeMillis(), TranscriptionData.SpeakerType.USER);
-
-        // Search for "world"
-        List<TranscriptionData> results = transcriptionManager.searchTranscriptions("world");
-        assertEquals("Should find two transcriptions containing 'world'", 2, results.size());
+        // Save test transcriptions
+        transcriptionManager.saveTranscriptionSnippet("call-1", "Hello world", 1000, SpeakerType.CALLER);
+        transcriptionManager.saveTranscriptionSnippet("call-2", "Goodbye world", 2000, SpeakerType.USER);
+        transcriptionManager.saveTranscriptionSnippet("call-3", "Hello there", 3000, SpeakerType.ASSISTANT);
 
         // Search for "hello"
-        results = transcriptionManager.searchTranscriptions("hello");
-        assertEquals("Should find one transcription containing 'hello'", 1, results.size());
-        assertEquals("Should match the first call", callId1, results.get(0).getCallId());
-
-        // Search for non-existent text
-        results = transcriptionManager.searchTranscriptions("nonexistent");
-        assertTrue("Should return empty list for non-existent text", results.isEmpty());
+        List<TranscriptionData> results = transcriptionManager.searchTranscriptions("hello");
+        assertEquals("Should find 2 matching transcriptions", 2, results.size());
+        assertTrue("Results should be sorted by timestamp", 
+            results.get(0).getTimestamp() < results.get(1).getTimestamp());
     }
 
     @Test
     public void testEmptyTranscriptions() {
-        String callId = "non-existent-call";
-        List<TranscriptionData> transcriptions = transcriptionManager.getTranscriptionForCall(callId);
+        List<TranscriptionData> transcriptions = transcriptionManager.getTranscriptionForCall("non-existent");
         assertTrue("Should return empty list for non-existent call", transcriptions.isEmpty());
+
+        List<TranscriptionData> searchResults = transcriptionManager.searchTranscriptions("test");
+        assertTrue("Should return empty list for no matches", searchResults.isEmpty());
+    }
+
+    @Test
+    public void testTranscriptionOrdering() {
+        // Save transcriptions out of order
+        transcriptionManager.saveTranscriptionSnippet("call-1", "Third", 3000, SpeakerType.CALLER);
+        transcriptionManager.saveTranscriptionSnippet("call-1", "First", 1000, SpeakerType.USER);
+        transcriptionManager.saveTranscriptionSnippet("call-1", "Second", 2000, SpeakerType.ASSISTANT);
+
+        List<TranscriptionData> transcriptions = transcriptionManager.getTranscriptionForCall("call-1");
+        assertEquals("Should return correct number of transcriptions", 3, transcriptions.size());
+        assertEquals("First transcription should be 'First'", "First", transcriptions.get(0).getText());
+        assertEquals("Second transcription should be 'Second'", "Second", transcriptions.get(1).getText());
+        assertEquals("Third transcription should be 'Third'", "Third", transcriptions.get(2).getText());
     }
 } 
