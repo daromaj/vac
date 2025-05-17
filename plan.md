@@ -337,7 +337,7 @@
     - `test_transcriptionAudioAssociation()`: Verify correct audio-transcription pairing
 
 ### Task 7.2: Audio Level Monitoring
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** Implement `AudioLevelMonitor` to track local microphone audio levels. This includes:
     - Setting up audio level monitoring using Android's `AudioRecord`
     - Implementing threshold detection for user speech
