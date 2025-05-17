@@ -318,7 +318,7 @@
 ## Phase 7: Transcription Saving & Display
 
 ### Task 7.1: Transcription Data Structure & Storage
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** Implement the `TranscriptionData` class and `TranscriptionManager` for saving and managing transcriptions. This includes:
     - Creating the data structure for transcription snippets
     - Implementing JSON file storage for transcriptions
