@@ -216,6 +216,68 @@ This document outlines the application scope, MVP requirements, developer guidel
   * No audio conflicts during the call handling process.
   * Services release resources after call ends.
 
+### Task 6.2: Caller Message Recording (via `MessageRecorderHandler`)
+
+* **Description:** Implement `MessageRecorderHandler` to record entire call from start to finish. Recording continues even if user takes over the call, until call ends.
+* **Acceptance Criteria:**
+
+  * Recording starts when call is answered.
+  * Recording stops when call ends.
+  * Audio is saved to a file in app-private storage.
+  * `MessageRecorderHandler.stopRecording()` is correctly called by `CallSessionManager.stopScreening()` when the call finally terminates.
+  * Run all unit tests to ensure no existing functionality is broken by the changes.
+  * If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
+* **Test Scenarios (Unit Tests):**
+
+  * `test_mediaRecorderStarts()`: Verify `MediaRecorder.start()` is called.
+  * `test_audioFileIsSaved()`: Check if file path generation is correct (actual saving is integration).
+  * `test_recordingContinuesOnUserTakeOver()`.
+  * `test_recordingStopsWhenCallEndsPostTakeOver()`.
+
+### Task 6.3: Transcription Saving
+
+* **Description:** Implement functionality to save real-time transcriptions alongside audio recordings. This includes:
+
+  * Creating a data structure to store transcription snippets with timestamps
+  * Saving transcriptions to a JSON file in app-private storage
+  * Associating transcriptions with their corresponding audio recordings
+* **Acceptance Criteria:**
+
+  * Each transcription snippet is saved with its timestamp
+  * Transcriptions are saved in a structured format (JSON)
+  * Transcriptions are associated with the correct audio recording
+  * Transcriptions are saved even if the user takes over the call
+  * Run all unit tests to ensure no existing functionality is broken by the changes.
+  * If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
+* **Test Scenarios (Unit Tests):**
+
+  * `test_transcriptionSnippetsAreSaved()`: Verify transcription data is saved correctly
+  * `test_transcriptionsHaveTimestamps()`: Verify timestamps are included
+  * `test_transcriptionsAreAssociatedWithAudio()`: Verify correct audio-transcription pairing
+  * `test_transcriptionsSavedDuringUserTakeOver()`: Verify transcriptions continue during user control
+
+### Task 6.4: Enhanced Message Playback UI
+
+* **Description:** Implement an enhanced UI for viewing and playing back recorded messages, including:
+
+  * Display of saved transcriptions alongside audio playback
+  * Timestamp markers in the transcription
+  * Basic search functionality for transcriptions
+  * Visual indication of current playback position in the transcription
+* **Acceptance Criteria:**
+
+  * Users can see transcriptions while playing back recordings
+  * Transcriptions are synchronized with audio playback
+  * Users can search through transcriptions
+  * UI clearly shows the relationship between audio and text
+  * Run all unit tests to ensure no existing functionality is broken by the changes.
+  * If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
+* **Test Scenarios (Unit Tests):**
+
+  * `test_transcriptionDisplayedWithAudio()`: Verify transcription UI updates with playback
+  * `test_searchFunctionality()`: Verify search works on saved transcriptions
+  * `test_playbackPositionIndication()`: Verify UI shows current playback position
+
 ### Task 7: Legal and User Communication
 
 * **Description:** Ensure legal compliance through clear disclosure in greetings.
@@ -225,6 +287,227 @@ This document outlines the application scope, MVP requirements, developer guidel
   * Documentation includes privacy compliance notes.
 
 ### Task 8: Device Compatibility Testing
+
+* **Description:** Validate on various Android versions and devices.
+* **Acceptance Criteria:**
+
+  * Features function correctly on a range of supported devices.
+  * Known limitations are documented with fallback behavior.
+
+### Task 9: Transcription Management Classes
+
+* **Description:** Implement classes for managing transcriptions.
+* **Acceptance Criteria:**
+
+  * `TranscriptionManager`
+    * **Purpose:** Manages saving and retrieving transcriptions
+    * **Key Public Methods:**
+      * `saveTranscriptionSnippet(String callId, String text, long timestamp, SpeakerType speakerType)`
+      * `getTranscriptionForCall(String callId)`
+      * `searchTranscriptions(String query)`
+    * **Key Responsibilities:**
+      * Stores transcription snippets with timestamps
+      * Associates transcriptions with audio recordings
+      * Provides search functionality
+      * Manages JSON file storage/retrieval
+
+  * `TranscriptionData`
+    * **Purpose:** Data class representing a transcription snippet
+    * **Properties:**
+      * `timestamp`: Long
+      * `text`: String
+      * `callId`: String
+      * `speakerType`: SpeakerType (ASSISTANT, USER, CALLER)
+
+  * `AudioLevelMonitor`
+    * **Purpose:** Monitors local microphone audio levels to help identify speakers
+    * **Key Public Methods:**
+      * `startMonitoring()`
+      * `stopMonitoring()`
+      * `getCurrentLevel()`: Returns current audio level
+      * `isUserSpeaking()`: Returns true if local mic level exceeds threshold
+    * **Key Responsibilities:**
+      * Monitors local microphone audio levels
+      * Provides real-time audio level data
+      * Helps identify when user is speaking
+
+  * `SpeakerIdentifier`
+    * **Purpose:** Determines the speaker for each transcription snippet
+    * **Key Public Methods:**
+      * `identifySpeaker(String text, long timestamp, float localMicLevel)`
+      * `isAssistantSpeaking()`: Returns true if TTS is active
+      * `isUserTakeOverActive()`: Returns true if user has taken over
+    * **Key Responsibilities:**
+      * Uses audio levels, TTS state, and user take-over state to identify speakers
+      * Provides speaker type for each transcription snippet
+      * Handles edge cases and transitions between speakers
+
+### Task 7.2: Real-time Transcription Saving
+
+* **Description:** Modify `SpeechRecognitionHandler` to save transcriptions via `TranscriptionManager`. This includes:
+    * Adding transcription saving to the STT callback flow
+    * Implementing speaker identification using audio levels
+    * Ensuring transcriptions are saved even during user take-over
+    * Implementing proper error handling for storage failures
+* **Acceptance Criteria:**
+    * Each STT result is saved with its timestamp and speaker type
+    * Speaker identification works reliably using audio levels
+    * Transcriptions continue to be saved during user take-over
+    * Storage errors are handled gracefully
+    * Run all unit tests to ensure no existing functionality is broken by the changes.
+    * If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
+* **Test Scenarios (Unit Tests):**
+    * `test_sttResultsAreSaved()`: Verify transcription saving from STT
+    * `test_speakerIdentification()`: Verify correct speaker type assignment
+    * `test_audioLevelDetection()`: Verify local mic level monitoring
+    * `test_transcriptionDuringTakeOver()`: Verify saving during user control
+    * `test_storageErrorHandling()`: Verify graceful error handling
+
+### Task 8: Device Compatibility Testing
+
+* **Description:** Validate on various Android versions and devices.
+* **Acceptance Criteria:**
+
+  * Features function correctly on a range of supported devices.
+  * Known limitations are documented with fallback behavior.
+
+### Task 9: Transcription Management Classes
+
+* **Description:** Implement classes for managing transcriptions.
+* **Acceptance Criteria:**
+
+  * `TranscriptionManager`
+    * **Purpose:** Manages saving and retrieving transcriptions
+    * **Key Public Methods:**
+      * `saveTranscriptionSnippet(String callId, String text, long timestamp, SpeakerType speakerType)`
+      * `getTranscriptionForCall(String callId)`
+      * `searchTranscriptions(String query)`
+    * **Key Responsibilities:**
+      * Stores transcription snippets with timestamps
+      * Associates transcriptions with audio recordings
+      * Provides search functionality
+      * Manages JSON file storage/retrieval
+
+    * `TranscriptionData`
+        * **Purpose:** Data class representing a transcription snippet
+        * **Properties:**
+            *   `timestamp`: Long
+            *   `text`: String
+            *   `callId`: String
+            *   `speakerType`: SpeakerType (ASSISTANT, USER, CALLER)
+
+    * `AudioLevelMonitor`
+        *   **Purpose:** Monitors local microphone audio levels to help identify speakers
+        *   **Key Public Methods:**
+            *   `startMonitoring()`
+            *   `stopMonitoring()`
+            *   `getCurrentLevel()`: Returns current audio level
+            *   `isUserSpeaking()`: Returns true if local mic level exceeds threshold
+        *   **Key Responsibilities:**
+            *   Monitors local microphone audio levels
+            *   Provides real-time audio level data
+            *   Helps identify when user is speaking
+
+    * `SpeakerIdentifier`
+        *   **Purpose:** Determines the speaker for each transcription snippet
+        *   **Key Public Methods:**
+            *   `identifySpeaker(String text, long timestamp, float localMicLevel)`
+            *   `isAssistantSpeaking()`: Returns true if TTS is active
+            *   `isUserTakeOverActive()`: Returns true if user has taken over
+        *   **Key Responsibilities:**
+            *   Uses audio levels, TTS state, and user take-over state to identify speakers
+            *   Provides speaker type for each transcription snippet
+            *   Handles edge cases and transitions between speakers
+
+### Task 10: Call State Management (MVP Scope):
+
+* **Description:** Handle the primary call flow (single incoming call screened, then terminated).
+* **Acceptance Criteria:**
+
+  * Ensure all audio resources (`MediaPlayer`, `SpeechRecognizer`, `TextToSpeech`, `MediaRecorder`) and services are properly released when the call ends (e.g., triggered by `CallScreeningService.onCallRemoved()` or other relevant lifecycle events).
+  * Advanced telephony states like call waiting, call merging, or multiple simultaneous calls are out of scope for MVP. The assistant should aim to gracefully terminate its current session if the primary call is unexpectedly dropped or superseded.
+
+### Task 11: Legal and User Communication
+
+* **Description:** Ensure legal compliance through clear disclosure in greetings.
+* **Acceptance Criteria:**
+
+  * Every interaction informs caller about recording.
+  * Documentation includes privacy compliance notes.
+
+### Task 12: Device Compatibility Testing
+
+* **Description:** Validate on various Android versions and devices.
+* **Acceptance Criteria:**
+
+  * Features function correctly on a range of supported devices.
+  * Known limitations are documented with fallback behavior.
+
+### Task 13: Transcription Management Classes
+
+* **Description:** Implement classes for managing transcriptions.
+* **Acceptance Criteria:**
+
+  * `TranscriptionManager`
+    * **Purpose:** Manages saving and retrieving transcriptions
+    * **Key Public Methods:**
+      * `saveTranscriptionSnippet(String callId, String text, long timestamp, SpeakerType speakerType)`
+      * `getTranscriptionForCall(String callId)`
+      * `searchTranscriptions(String query)`
+    * **Key Responsibilities:**
+      * Stores transcription snippets with timestamps
+      * Associates transcriptions with audio recordings
+      * Provides search functionality
+      * Manages JSON file storage/retrieval
+
+    * `TranscriptionData`
+        * **Purpose:** Data class representing a transcription snippet
+        * **Properties:**
+            *   `timestamp`: Long
+            *   `text`: String
+            *   `callId`: String
+            *   `speakerType`: SpeakerType (ASSISTANT, USER, CALLER)
+
+    * `AudioLevelMonitor`
+        *   **Purpose:** Monitors local microphone audio levels to help identify speakers
+        *   **Key Public Methods:**
+            *   `startMonitoring()`
+            *   `stopMonitoring()`
+            *   `getCurrentLevel()`: Returns current audio level
+            *   `isUserSpeaking()`: Returns true if local mic level exceeds threshold
+        *   **Key Responsibilities:**
+            *   Monitors local microphone audio levels
+            *   Provides real-time audio level data
+            *   Helps identify when user is speaking
+
+    * `SpeakerIdentifier`
+        *   **Purpose:** Determines the speaker for each transcription snippet
+        *   **Key Public Methods:**
+            *   `identifySpeaker(String text, long timestamp, float localMicLevel)`
+            *   `isAssistantSpeaking()`: Returns true if TTS is active
+            *   `isUserTakeOverActive()`: Returns true if user has taken over
+        *   **Key Responsibilities:**
+            *   Uses audio levels, TTS state, and user take-over state to identify speakers
+            *   Provides speaker type for each transcription snippet
+            *   Handles edge cases and transitions between speakers
+
+### Task 14: Call State Management (MVP Scope):
+
+* **Description:** Handle the primary call flow (single incoming call screened, then terminated).
+* **Acceptance Criteria:**
+
+  * Ensure all audio resources (`MediaPlayer`, `SpeechRecognizer`, `TextToSpeech`, `MediaRecorder`) and services are properly released when the call ends (e.g., triggered by `CallScreeningService.onCallRemoved()` or other relevant lifecycle events).
+  * Advanced telephony states like call waiting, call merging, or multiple simultaneous calls are out of scope for MVP. The assistant should aim to gracefully terminate its current session if the primary call is unexpectedly dropped or superseded.
+
+### Task 15: Legal and User Communication
+
+* **Description:** Ensure legal compliance through clear disclosure in greetings.
+* **Acceptance Criteria:**
+
+  * Every interaction informs caller about recording.
+  * Documentation includes privacy compliance notes.
+
+### Task 16: Device Compatibility Testing
 
 * **Description:** Validate on various Android versions and devices.
 * **Acceptance Criteria:**
@@ -385,6 +668,50 @@ This section outlines a potential class structure for the MVP, focusing on separ
     *   `SharedPreferencesManager`
     *   `PermissionManager` (or logic within Activities)
     *   `LanguagePackManager` (or logic within Activities)
+
+11. **Transcription Management Classes:**
+    *   `TranscriptionManager`
+        *   **Purpose:** Manages saving and retrieving transcriptions
+        *   **Key Public Methods:**
+            *   `saveTranscriptionSnippet(String callId, String text, long timestamp, SpeakerType speakerType)`
+            *   `getTranscriptionForCall(String callId)`
+            *   `searchTranscriptions(String query)`
+        *   **Key Responsibilities:**
+            *   Stores transcription snippets with timestamps
+            *   Associates transcriptions with audio recordings
+            *   Provides search functionality
+            *   Manages JSON file storage/retrieval
+
+    *   `TranscriptionData`
+        *   **Purpose:** Data class representing a transcription snippet
+        *   **Properties:**
+            *   `timestamp`: Long
+            *   `text`: String
+            *   `callId`: String
+            *   `speakerType`: SpeakerType (ASSISTANT, USER, CALLER)
+
+    *   `AudioLevelMonitor`
+        *   **Purpose:** Monitors local microphone audio levels to help identify speakers
+        *   **Key Public Methods:**
+            *   `startMonitoring()`
+            *   `stopMonitoring()`
+            *   `getCurrentLevel()`: Returns current audio level
+            *   `isUserSpeaking()`: Returns true if local mic level exceeds threshold
+        *   **Key Responsibilities:**
+            *   Monitors local microphone audio levels
+            *   Provides real-time audio level data
+            *   Helps identify when user is speaking
+
+    *   `SpeakerIdentifier`
+        *   **Purpose:** Determines the speaker for each transcription snippet
+        *   **Key Public Methods:**
+            *   `identifySpeaker(String text, long timestamp, float localMicLevel)`
+            *   `isAssistantSpeaking()`: Returns true if TTS is active
+            *   `isUserTakeOverActive()`: Returns true if user has taken over
+        *   **Key Responsibilities:**
+            *   Uses audio levels, TTS state, and user take-over state to identify speakers
+            *   Provides speaker type for each transcription snippet
+            *   Handles edge cases and transitions between speakers
 
 **User Control Considerations:**
 

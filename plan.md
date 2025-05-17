@@ -315,9 +315,101 @@
     - `test_loadMessageList()`: Verify logic that lists saved audio files.
     - `test_playMessageStartsMediaPlayer()`: Verify `MediaPlayer` is used for playback.
 
-## Phase 7: QA - STT, Recording & Playback
+## Phase 7: Transcription Saving & Display
 
-### Task 7.1: Full Interaction Flow Verification
+### Task 7.1: Transcription Data Structure & Storage
+- [ ] **Owner:** DEV
+- **Description:** Implement the `TranscriptionData` class and `TranscriptionManager` for saving and managing transcriptions. This includes:
+    - Creating the data structure for transcription snippets
+    - Implementing JSON file storage for transcriptions
+    - Adding methods to associate transcriptions with audio recordings
+- **Acceptance Criteria:**
+    - `TranscriptionData` class correctly stores timestamp, text, and callId
+    - Transcriptions are saved in a structured JSON format
+    - Each transcription snippet is properly associated with its audio recording
+    - Transcriptions persist across app restarts
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
+- **Test Scenarios (Unit Tests):**
+    - `test_transcriptionDataStructure()`: Verify data class properties
+    - `test_transcriptionJsonSerialization()`: Verify JSON format
+    - `test_transcriptionPersistence()`: Verify data survives app restart
+    - `test_transcriptionAudioAssociation()`: Verify correct audio-transcription pairing
+
+### Task 7.2: Audio Level Monitoring
+- [ ] **Owner:** DEV
+- **Description:** Implement `AudioLevelMonitor` to track local microphone audio levels. This includes:
+    - Setting up audio level monitoring using Android's `AudioRecord`
+    - Implementing threshold detection for user speech
+    - Providing real-time audio level data
+- **Acceptance Criteria:**
+    - Audio levels are monitored continuously during calls
+    - User speech is reliably detected via threshold
+    - Monitoring doesn't interfere with other audio operations
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
+- **Test Scenarios (Unit Tests):**
+    - `test_audioLevelMonitoring()`: Verify level detection works
+    - `test_userSpeechDetection()`: Verify threshold detection
+    - `test_monitoringPerformance()`: Verify no impact on other audio
+
+### Task 7.3: Speaker Identification
+- [ ] **Owner:** DEV
+- **Description:** Implement `SpeakerIdentifier` to determine the speaker for each transcription. This includes:
+    - Using audio levels to identify user speech
+    - Tracking TTS state for assistant identification
+    - Handling user take-over state
+    - Determining caller speech by process of elimination
+- **Acceptance Criteria:**
+    - Speaker type is correctly identified for each transcription
+    - Transitions between speakers are handled smoothly
+    - Edge cases (e.g., overlapping speech) are handled gracefully
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
+- **Test Scenarios (Unit Tests):**
+    - `test_speakerIdentification()`: Verify correct speaker assignment
+    - `test_speakerTransitions()`: Verify smooth transitions
+    - `test_edgeCases()`: Verify handling of edge cases
+
+### Task 7.4: Real-time Transcription Saving with Speaker Info
+- [ ] **Owner:** DEV
+- **Description:** Modify `SpeechRecognitionHandler` to save transcriptions via `TranscriptionManager`. This includes:
+    - Adding transcription saving to the STT callback flow
+    - Ensuring transcriptions are saved even during user take-over
+    - Implementing proper error handling for storage failures
+- **Acceptance Criteria:**
+    - Each STT result is saved with its timestamp
+    - Transcriptions continue to be saved during user take-over
+    - Storage errors are handled gracefully
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
+- **Test Scenarios (Unit Tests):**
+    - `test_sttResultsAreSaved()`: Verify transcription saving from STT
+    - `test_transcriptionDuringTakeOver()`: Verify saving during user control
+    - `test_storageErrorHandling()`: Verify graceful error handling
+
+### Task 7.5: Enhanced Message Playback UI with Transcriptions
+- [ ] **Owner:** DEV
+- **Description:** Implement the enhanced message playback UI with transcription display. This includes:
+    - Creating `TranscriptionPlaybackManager` for audio-text synchronization
+    - Updating the message playback UI to show transcriptions
+    - Adding search functionality for transcriptions
+- **Acceptance Criteria:**
+    - Transcriptions are displayed alongside audio playback
+    - Current playback position is highlighted in the transcription
+    - Users can search through transcriptions
+    - UI is responsive and user-friendly
+    - Run all unit tests to ensure no existing functionality is broken by the changes.
+    - If all tests pass, commit the changes with a descriptive message before proceeding to the next task.
+- **Test Scenarios (Unit Tests):**
+    - `test_playbackTranscriptionSync()`: Verify audio-text synchronization
+    - `test_transcriptionSearch()`: Verify search functionality
+    - `test_playbackPositionHighlight()`: Verify position indication
+    - `test_uiResponsiveness()`: Verify UI performance
+
+## Phase 8: QA - STT, Recording & Playback
+
+### Task 8.1: Full Interaction Flow Verification
 - [ ] **Owner:** QA (USER)
 - **Description:** Verify the STT functionality, transcription display, follow-up message, message recording, and playback of recorded messages.
 - **Acceptance Criteria:**
@@ -328,9 +420,9 @@
     - Recorded messages can be listed and played back in the app.
     - All tests performed on Samsung Galaxy S21 Ultra (Android 14).
 
-## Phase 8: Stability & Polish
+## Phase 9: Stability & Polish
 
-### Task 8.1: Audio Focus Management
+### Task 9.1: Audio Focus Management
 - [ ] **Owner:** DEV
 - **Description:** Implement robust audio focus management using `AudioManager` to prevent conflicts between TTS, STT, `MediaPlayer` (for greetings/playback), and the call audio itself.
 - **Acceptance Criteria:**
@@ -342,7 +434,7 @@
     - `test_requestsAudioPlaybackFocus()`: Mock `AudioManager` and verify `requestAudioFocus()` call.
     - `test_abandonsAudioPlaybackFocus()`: Mock `AudioManager` and verify `abandonAudioFocus()` call.
 
-### Task 8.2: Resource Cleanup
+### Task 9.2: Resource Cleanup
 - [ ] **Owner:** DEV
 - **Description:** Ensure all resources (`MediaPlayer`, `SpeechRecognizer`, `TextToSpeech`, `MediaRecorder`, services, handlers) are properly released when they are no longer needed, or when the call/service ends. This is critical for normal call termination and when the user takes over (cleanup occurs upon actual call end).
 - **Acceptance Criteria:**
@@ -354,7 +446,7 @@
     - `test_componentsReleasedOnDestroy()`: For Activities/Services, verify release methods are called in `onDestroy()`.
     - `test_resourcesReleasedPostTakeOverOnCallEnd()`.
 
-### Task 8.3: MVP Error Handling
+### Task 9.3: MVP Error Handling
 - [ ] **Owner:** DEV
 - **Description:** Implement basic `Toast` messages for critical operational failures as per MVP clarifications (e.g., "Audio recording failed," "Speech engine unavailable"). Implement logging for key events and errors.
 - **Acceptance Criteria:**
@@ -365,9 +457,9 @@
 - **Test Scenarios (Unit Tests):**
     - `test_errorToastIsShown()`: Simulate error condition, verify Toast display logic (if possible in unit test, otherwise manual).
 
-## Phase 9: Final MVP Testing
+## Phase 10: Final MVP Testing
 
-### Task 9.1: Integration & Device Testing
+### Task 10.1: Integration & Device Testing
 - [ ] **Owner:** DEV
 - **Description:** Perform overall integration testing of all features on the Samsung Galaxy S21 Ultra (Android 14). Ensure all MVP acceptance criteria from `design.md` are met.
 - **Acceptance Criteria:**
@@ -376,9 +468,9 @@
     - Run all unit tests to ensure no existing functionality is broken by the changes.
     - If all tests pass, commit any final code tweaks/fixes with a descriptive message.
 
-## Phase 10: QA - Final MVP Acceptance
+## Phase 11: QA - Final MVP Acceptance
 
-### Task 10.1: End-to-End MVP Flow & Stability
+### Task 11.1: End-to-End MVP Flow & Stability
 - [ ] **Owner:** QA (USER)
 - **Description:** Conduct end-to-end testing of all features of the MVP application on the Samsung Galaxy S21 Ultra (Android 14). Verify stability, resource handling, error messages, and overall user experience for the MVP.
 - **Acceptance Criteria:**
