@@ -89,4 +89,9 @@ public class AudioLevelMonitor {
         int level = getAudioLevel();
         return level > threshold;
     }
+
+    public boolean isUserSpeaking(float threshold) {
+        float level = getAudioLevel();  // Use float for more precision if needed
+        return level > threshold;
+    }
 }
