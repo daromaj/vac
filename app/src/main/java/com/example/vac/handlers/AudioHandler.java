@@ -587,4 +587,41 @@ public class AudioHandler {
             tts.stop();
         }
     }
-} 
+    
+    // New methods for Phase 8: Reusable AudioPlayer with controls
+    public void pausePlayback() {
+        if (mediaPlayer != null && mediaPlayer.isPlaying()) {
+            mediaPlayer.pause();
+            isPlayingAudio = false;  // Update state
+        }
+    }
+    
+    public void resumePlayback() {
+        if (mediaPlayer != null && !mediaPlayer.isPlaying()) {
+            if (requestAudioFocus()) {
+                mediaPlayer.start();
+                isPlayingAudio = true;
+            }
+        }
+    }
+    
+    public void seekTo(int positionMs) {
+        if (mediaPlayer != null) {
+            mediaPlayer.seekTo(positionMs);
+        }
+    }
+    
+    public int getCurrentPosition() {
+        if (mediaPlayer != null) {
+            return mediaPlayer.getCurrentPosition();
+        }
+        return 0;
+    }
+    
+    public int getDuration() {
+        if (mediaPlayer != null) {
+            return mediaPlayer.getDuration();
+        }
+        return 0;
+    }
+}
