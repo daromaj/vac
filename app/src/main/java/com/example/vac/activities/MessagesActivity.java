@@ -88,27 +88,97 @@ public class MessagesActivity extends AppCompatActivity implements MessageAdapte
         messageAdapter.notifyDataSetChanged();
     }
 
-    @Override
-    public void onPlayMessage(Message message) {
-        if (mediaPlayer != null && mediaPlayer.isPlaying()) {
-            mediaPlayer.stop();
-            mediaPlayer.release();
-            mediaPlayer = null;
-        }
-
-        mediaPlayer = new MediaPlayer();
-        try {
-            mediaPlayer.setDataSource(message.getFile().getAbsolutePath());
-            mediaPlayer.prepare();
-            mediaPlayer.start();
-            Toast.makeText(this, "Playing: " + message.getFilename(), Toast.LENGTH_SHORT).show();
-            mediaPlayer.setOnCompletionListener(mp -> releaseMediaPlayer());
-        } catch (IOException e) {
-            Log.e(TAG, "Error playing message", e);
-            Toast.makeText(this, "Error playing message", Toast.LENGTH_SHORT).show();
-            releaseMediaPlayer();
-        }
+@Override
+public void onPlayMessage(Message message) {
+    if (mediaPlayer != null && mediaPlayer.isPlaying()) {
+        mediaPlayer.stop();
+        mediaPlayer.release();
+        mediaPlayer = null;
     }
+
+    mediaPlayer = new MediaPlayer();
+    try {
+        mediaPlayer.setDataSource(message.getFile().getAbsolutePath());
+        mediaPlayer.prepare();
+        
+        // Add UI controls for playback
+        showPlaybackControls();  // New method to display controls
+        
+        mediaPlayer.start();
+        Toast.makeText(this, "Playing: " + message.getFilename(), Toast.LENGTH_SHORT).show();
+        mediaPlayer.setOnCompletionListener(mp -> {
+            releaseMediaPlayer();
+            hidePlaybackControls();  // Hide controls when playback ends
+        });
+    } catch (IOException e) {
+        Log.e(TAG, "Error playing message", e);
+        Toast.makeText(this, "Error playing message", Toast.LENGTH_SHORT).show();
+        releaseMediaPlayer();
+    }
+}
+
+// New method to handle UI controls
+private void showPlaybackControls() {
+    // Assuming a layout or dialog for controls; for example, inflate a dialog with buttons
+    // This is a placeholder; integrate with actual UI elements in the layout
+    View controlsView = findViewById(R.id.playback_controls_layout);  // Reference your controls layout ID
+    if (controlsView != null) {
+        controlsView.setVisibility(View.VISIBLE);
+        
+        // Set up buttons (e.g., play, pause, seek bar)
+        findViewById(R.id.btn_play_pause).setOnClickListener(v -> {
+            if (mediaPlayer.isPlaying()) {
+                mediaPlayer.pause();
+                ((Button) v).setText("Play");  // Update button text
+            } else {
+                mediaPlayer.start();
+                ((Button) v).setText("Pause");
+            }
+        });
+        
+        findViewById(R.id.seek_bar).setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser && mediaPlayer != null) {
+                    mediaPlayer.seekTo(progress);
+                }
+            }
+            // Other methods as needed
+        });
+        
+        // Update timer TextView
+        TextView timerTextView = findViewById(R.id.timer_text_view);
+        timerTextView.setText(formatTime(mediaPlayer.getCurrentPosition()) + " / " + formatTime(mediaPlayer.getDuration()));
+        
+        // Optional: Use a Handler to update the seek bar and timer periodically
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (mediaPlayer != null && mediaPlayer.isPlaying()) {
+                    int currentPosition = mediaPlayer.getCurrentPosition();
+                    SeekBar seekBar = findViewById(R.id.seek_bar);
+                    seekBar.setProgress(currentPosition);
+                    timerTextView.setText(formatTime(currentPosition) + " / " + formatTime(mediaPlayer.getDuration()));
+                    new Handler().postDelayed(this, 1000);  // Update every second
+                }
+            }
+        }, 1000);
+    }
+}
+
+private void hidePlaybackControls() {
+    View controlsView = findViewById(R.id.playback_controls_layout);
+    if (controlsView != null) {
+        controlsView.setVisibility(View.GONE);
+    }
+}
+
+private String formatTime(int milliseconds) {
+    int seconds = milliseconds / 1000;
+    int minutes = seconds / 60;
+    seconds = seconds % 60;
+    return String.format("%d:%02d", minutes, seconds);
+}
 
     @Override
     public void onDeleteMessage(Message message) {
