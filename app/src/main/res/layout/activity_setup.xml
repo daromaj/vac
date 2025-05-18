@@ -34,7 +34,6 @@
                 android:layout_height="wrap_content"
                 android:hint="@string/name_input_hint"
                 android:inputType="textPersonName" />
-
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Custom Greeting Input -->
@@ -53,7 +52,6 @@
                 android:inputType="textMultiLine"
                 android:minLines="2"
                 android:maxLines="4" />
-
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Save Button -->
@@ -167,7 +165,7 @@
 
         <!-- Default Call Screener Section -->
         <LinearLayout
-            android:id="@+id/default_screener_section_container" 
+            android:id="@+id/default_screener_section_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
@@ -215,7 +213,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:layout_marginTop="16dp" >
+            android:layout_marginTop="16dp">
 
             <TextView
                 android:layout_width="match_parent"
@@ -253,8 +251,44 @@
                 android:layout_height="wrap_content"
                 android:text="@string/custom_greeting_status_default"
                 android:layout_marginBottom="16dp"/>
-
         </LinearLayout>
 
+        <!-- Playback Controls Layout -->
+        <LinearLayout
+            android:id="@+id/playback_controls_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center">
+
+                <Button
+                    android:id="@+id/btn_play_pause"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Play"
+                    android:layout_margin="8dp" />
+
+                <SeekBar
+                    android:id="@+id/seek_bar"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_margin="8dp" />
+
+                <TextView
+                    android:id="@+id/timer_text_view"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="00:00 / 00:00"
+                    android:layout_margin="8dp" />
+            </LinearLayout>
+        </LinearLayout>
     </LinearLayout>
-</ScrollView> 
+</ScrollView>
