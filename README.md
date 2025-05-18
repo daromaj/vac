@@ -112,4 +112,13 @@ The generated APK (`app-debug.apk`) will be located at: `app/build/outputs/apk/d
 7. Install APK:
    ```bash
    adb install app/build/outputs/apk/debug/app-debug.apk
-   ``` 
+   ```
+
+### 4. Automation Scripts
+
+We've added scripts to automate the build and deployment process:
+
+- **build_and_deploy.sh**: For Unix-based systems (e.g., Linux, macOS). Run with `./build_and_deploy.sh`.
+- **build_and_deploy.bat**: For Windows. Run with `build_and_deploy.bat`.
+
+These scripts will clean the project, build the debug APK, and deploy it to a connected device using ADB.
