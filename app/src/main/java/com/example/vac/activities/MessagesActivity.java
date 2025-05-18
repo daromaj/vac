@@ -2,8 +2,11 @@ package com.example.vac.activities;
 
 import android.media.MediaPlayer;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -119,50 +122,76 @@ public void onPlayMessage(Message message) {
 
 // New method to handle UI controls
 private void showPlaybackControls() {
-    // Assuming a layout or dialog for controls; for example, inflate a dialog with buttons
-    // This is a placeholder; integrate with actual UI elements in the layout
-    View controlsView = findViewById(R.id.playback_controls_layout);  // Reference your controls layout ID
-    if (controlsView != null) {
-        controlsView.setVisibility(View.VISIBLE);
-        
-        // Set up buttons (e.g., play, pause, seek bar)
-        findViewById(R.id.btn_play_pause).setOnClickListener(v -> {
-            if (mediaPlayer.isPlaying()) {
-                mediaPlayer.pause();
-                ((Button) v).setText("Play");  // Update button text
-            } else {
-                mediaPlayer.start();
-                ((Button) v).setText("Pause");
+    // Check if the layout exists before proceeding
+    View controlsView = findViewById(R.id.playback_controls_layout);
+    if (controlsView == null) {
+        Log.e(TAG, "playback_controls_layout not found in layout. Skipping controls setup.");
+        Toast.makeText(this, "Playback controls layout not found.", Toast.LENGTH_SHORT).show();
+        return;  // Exit if layout is missing
+    }
+    controlsView.setVisibility(View.VISIBLE);
+    
+    // Set up buttons (e.g., play, pause, seek bar) with null checks
+    View btnPlayPause = findViewById(R.id.btn_play_pause);
+    if (btnPlayPause != null) {
+        btnPlayPause.setOnClickListener(v -> {
+            if (mediaPlayer != null) {
+                if (mediaPlayer.isPlaying()) {
+                    mediaPlayer.pause();
+                    ((Button) v).setText("Play");
+                } else {
+                    mediaPlayer.start();
+                    ((Button) v).setText("Pause");
+                }
             }
         });
-        
-        findViewById(R.id.seek_bar).setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+    } else {
+        Log.e(TAG, "btn_play_pause not found in layout.");
+    }
+    
+    SeekBar seekBar = (SeekBar) findViewById(R.id.seek_bar);
+    if (seekBar != null) {
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+            public void onProgressChanged(SeekBar sb, int progress, boolean fromUser) {
                 if (fromUser && mediaPlayer != null) {
                     mediaPlayer.seekTo(progress);
                 }
             }
-            // Other methods as needed
+            
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                // No action needed
+            }
+            
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                // No action needed
+            }
         });
-        
-        // Update timer TextView
-        TextView timerTextView = findViewById(R.id.timer_text_view);
+    } else {
+        Log.e(TAG, "seek_bar not found in layout.");
+    }
+    
+    TextView timerTextView = (TextView) findViewById(R.id.timer_text_view);
+    if (timerTextView != null && mediaPlayer != null) {
         timerTextView.setText(formatTime(mediaPlayer.getCurrentPosition()) + " / " + formatTime(mediaPlayer.getDuration()));
         
-        // Optional: Use a Handler to update the seek bar and timer periodically
         new Handler().postDelayed(new Runnable() {
             @Override
             public void run() {
-                if (mediaPlayer != null && mediaPlayer.isPlaying()) {
+                if (mediaPlayer != null && mediaPlayer.isPlaying() && timerTextView != null) {
                     int currentPosition = mediaPlayer.getCurrentPosition();
-                    SeekBar seekBar = findViewById(R.id.seek_bar);
-                    seekBar.setProgress(currentPosition);
+                    if (seekBar != null) {
+                        seekBar.setProgress(currentPosition);
+                    }
                     timerTextView.setText(formatTime(currentPosition) + " / " + formatTime(mediaPlayer.getDuration()));
-                    new Handler().postDelayed(this, 1000);  // Update every second
+                    new Handler().postDelayed(this, 1000);
                 }
             }
         }, 1000);
+    } else {
+        Log.e(TAG, "timer_text_view not found in layout.");
     }
 }
 

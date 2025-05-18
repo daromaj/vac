@@ -605,6 +605,26 @@ public class AudioHandler {
         }
     }
     
+    public boolean isPlaying() {
+        return mediaPlayer != null && mediaPlayer.isPlaying();
+    }
+    
+    public void pause() {
+        if (mediaPlayer != null && mediaPlayer.isPlaying()) {
+            mediaPlayer.pause();
+            isPlayingAudio = false;  // Update state
+        }
+    }
+    
+    public void play() {
+        if (mediaPlayer != null && !mediaPlayer.isPlaying()) {
+            if (requestAudioFocus()) {
+                mediaPlayer.start();
+                isPlayingAudio = true;
+            }
+        }
+    }
+    
     public void seekTo(int positionMs) {
         if (mediaPlayer != null) {
             mediaPlayer.seekTo(positionMs);

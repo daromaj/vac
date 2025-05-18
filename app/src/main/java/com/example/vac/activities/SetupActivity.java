@@ -1,5 +1,7 @@
 package com.example.vac.activities;
 
+import static android.content.ContentValues.TAG;
+
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -38,10 +40,16 @@ import java.util.Locale;
 // Import for RoleManager
 import android.app.role.RoleManager;
 import android.os.Build;
+
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+
 import android.content.Context;
+
 import androidx.annotation.RequiresApi;
+
+import android.widget.SeekBar;
+import android.os.Handler;
 
 public class SetupActivity extends AppCompatActivity {
     public static final int REQUEST_PERMISSIONS = 100;
@@ -118,9 +126,9 @@ public class SetupActivity extends AppCompatActivity {
         // Set listener for the switch to save preference immediately
         useCustomGreetingFileSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             preferencesManager.setUseCustomGreetingFile(isChecked);
-            Toast.makeText(SetupActivity.this, 
-                "Custom greeting file for calls: " + (isChecked ? "Enabled" : "Disabled"), 
-                Toast.LENGTH_SHORT).show();
+            Toast.makeText(SetupActivity.this,
+                    "Custom greeting file for calls: " + (isChecked ? "Enabled" : "Disabled"),
+                    Toast.LENGTH_SHORT).show();
         });
 
         // Load saved preferences
@@ -224,7 +232,7 @@ public class SetupActivity extends AppCompatActivity {
         }
 
         // Always update greeting preview based on current name and saved custom greeting
-        updateDefaultGreetingPreview(); 
+        updateDefaultGreetingPreview();
 
         useCustomGreetingFileSwitch.setChecked(shouldUseCustomFile);
     }
@@ -274,29 +282,29 @@ public class SetupActivity extends AppCompatActivity {
     }
 
     private void updatePermissionStatuses() {
-        boolean recordAudioGranted = ContextCompat.checkSelfPermission(this, 
+        boolean recordAudioGranted = ContextCompat.checkSelfPermission(this,
                 Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
         boolean phoneStateGranted = ContextCompat.checkSelfPermission(this,
                 Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED;
 
         // Update Record Audio status
-        recordAudioPermissionStatus.setText("Status: " + 
+        recordAudioPermissionStatus.setText("Status: " +
                 (recordAudioGranted ? "Granted" : "Not Granted"));
         recordAudioPermissionStatus.setTextColor(getResources().getColor(
-                recordAudioGranted ? android.R.color.holo_green_dark : android.R.color.holo_red_dark, 
+                recordAudioGranted ? android.R.color.holo_green_dark : android.R.color.holo_red_dark,
                 null));
 
         // Update Phone State status
-        phoneStatePermissionStatus.setText("Status: " + 
+        phoneStatePermissionStatus.setText("Status: " +
                 (phoneStateGranted ? "Granted" : "Not Granted"));
         phoneStatePermissionStatus.setTextColor(getResources().getColor(
-                phoneStateGranted ? android.R.color.holo_green_dark : android.R.color.holo_red_dark, 
+                phoneStateGranted ? android.R.color.holo_green_dark : android.R.color.holo_red_dark,
                 null));
     }
 
     private void checkPolishLanguagePack() {
         boolean isGeneralRecognitionAvailable = SpeechRecognizer.isRecognitionAvailable(this);
-        
+
         if (!isGeneralRecognitionAvailable) {
             polishLanguagePackStatus.setText(R.string.speech_recognition_not_available);
             polishLanguagePackStatus.setTextColor(getResources().getColor(android.R.color.holo_red_dark, null));
@@ -304,19 +312,19 @@ public class SetupActivity extends AppCompatActivity {
             saveButton.setEnabled(false); // Disable save if no SR
             return;
         }
-        
+
         // Check specifically for Polish language support by querying activities
         Intent recognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pl-PL");
         // EXTRA_LANGUAGE_PREFERENCE tells the recognizer which language to prefer if it supports multiple
         // and the primary language is not available or not specified.
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "pl-PL"); 
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "pl-PL");
         // EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE can be used if we strictly want results for this lang or none.
         // For checking availability, querying activities is a common approach.
 
         PackageManager pm = getPackageManager();
         List<ResolveInfo> activities = pm.queryIntentActivities(recognizerIntent, 0);
-        
+
         if (!activities.isEmpty()) {
             polishLanguagePackStatus.setText(R.string.polish_language_pack_available);
             polishLanguagePackStatus.setTextColor(getResources().getColor(android.R.color.holo_green_dark, null));
@@ -340,15 +348,15 @@ public class SetupActivity extends AppCompatActivity {
             if (intent.resolveActivity(getPackageManager()) != null) {
                 startActivity(intent);
             } else {
-                Toast.makeText(this, "Cannot open language settings on this device", 
+                Toast.makeText(this, "Cannot open language settings on this device",
                         Toast.LENGTH_SHORT).show();
             }
         }
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, 
-                                          @NonNull int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_PERMISSIONS) {
             updatePermissionStatuses();
@@ -387,7 +395,7 @@ public class SetupActivity extends AppCompatActivity {
             // If VAC is not the default, request the role.
             intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_CALL_SCREENING);
         }
-        
+
         // Check if the intent can be resolved before launching to prevent crashes
         if (intent.resolveActivity(getPackageManager()) != null) {
             roleActivityResultLauncher.launch(intent);
@@ -457,7 +465,8 @@ public class SetupActivity extends AppCompatActivity {
                 if (greetingFile.exists() && greetingFile.canRead()) {
                     try {
                         Uri fileUri = Uri.fromFile(greetingFile);
-                        audioHandler.playAudioFile(fileUri);
+                        audioHandler.playAudioFile(fileUri);  // Start playback
+                        showGreetingPlaybackControls();  // Show controls after starting playback
                         Toast.makeText(this, "Playing custom greeting...", Toast.LENGTH_SHORT).show();
                     } catch (Exception e) {
                         Log.e("SetupActivity", "Error playing greeting file: " + e.getMessage(), e);
@@ -476,6 +485,74 @@ public class SetupActivity extends AppCompatActivity {
         } else {
             Toast.makeText(this, "No custom greeting file generated yet.", Toast.LENGTH_SHORT).show();
             customGreetingStatusText.setText(getString(R.string.custom_greeting_status_default));
+        }
+    }
+
+    // New method to show playback controls for greeting
+    private void showGreetingPlaybackControls() {
+        // Similar to MessagesActivity, but adapted for SetupActivity
+        // Assuming you have a layout for controls in activity_setup.xml, e.g., with ID playback_controls_greeting
+        View controlsView = findViewById(R.id.playback_controls_layout);  // Use the same ID if shared, or define a new one
+        if (controlsView != null) {
+            controlsView.setVisibility(View.VISIBLE);
+
+            Button btnPlayPause = (Button) findViewById(R.id.btn_play_pause);
+            if (btnPlayPause != null) {
+                btnPlayPause.setOnClickListener(v -> {
+                    if (audioHandler.isPlaying()) {  // Assuming AudioHandler has isPlaying method
+                        audioHandler.pause();
+                        btnPlayPause.setText("Play");
+                    } else {
+                        audioHandler.play();
+                        btnPlayPause.setText("Pause");
+                    }
+                });
+            }
+
+            SeekBar seekBar = (SeekBar) findViewById(R.id.seek_bar);
+            if (seekBar != null) {
+                seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                    @Override
+                    public void onProgressChanged(SeekBar sb, int progress, boolean fromUser) {
+                        if (fromUser && audioHandler != null) {
+                            audioHandler.seekTo(progress);  // Assuming AudioHandler has seekTo
+                        }
+                    }
+
+                    @Override
+                    public void onStartTrackingTouch(SeekBar seekBar) {
+                    }
+
+                    @Override
+                    public void onStopTrackingTouch(SeekBar seekBar) {
+                    }
+                });
+                // Set up seekbar max and progress if possible
+                if (audioHandler != null) {
+                    seekBar.setMax(audioHandler.getDuration());  // Assuming getDuration method
+                }
+            }
+
+            TextView timerTextView = (TextView) findViewById(R.id.timer_text_view);
+            if (timerTextView != null && audioHandler != null) {
+                timerTextView.setText(formatTime(audioHandler.getCurrentPosition()) + " / " + formatTime(audioHandler.getDuration()));
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (audioHandler != null && audioHandler.isPlaying() && timerTextView != null) {
+                            int currentPosition = audioHandler.getCurrentPosition();
+                            if (seekBar != null) {
+                                seekBar.setProgress(currentPosition);
+                            }
+                            timerTextView.setText(formatTime(currentPosition) + " / " + formatTime(audioHandler.getDuration()));
+                            new Handler().postDelayed(this, 1000);
+                        }
+                    }
+                }, 1000);
+            }
+        } else {
+            Log.e(TAG, "Playback controls layout not found in SetupActivity.");
+            Toast.makeText(this, "Playback controls not available.", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -504,4 +581,11 @@ public class SetupActivity extends AppCompatActivity {
         }
         return super.onOptionsItemSelected(item);
     }
-} 
+
+    private String formatTime(int milliseconds) {
+        int seconds = milliseconds / 1000;
+        int minutes = seconds / 60;
+        seconds = seconds % 60;
+        return String.format("%02d:%02d", minutes, seconds);
+    }
+}
