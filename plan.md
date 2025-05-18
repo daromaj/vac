@@ -389,7 +389,7 @@
     - `test_storageErrorHandling()`: Verify graceful error handling
 
 ### Task 7.5: Enhanced Message Playback UI with Transcriptions
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** Implement the enhanced message playback UI with transcription display. This includes:
     - Creating `TranscriptionPlaybackManager` for audio-text synchronization
     - Updating the message playback UI to show transcriptions
@@ -407,7 +407,28 @@
     - `test_playbackPositionHighlight()`: Verify position indication
     - `test_uiResponsiveness()`: Verify UI performance
 
-## Phase 8: QA - STT, Recording & Playback
+## Phase 8: Implement Reusable AudioPlayer with Controls
+
+### Task 8.1: Enhance Audio Playback Component
+- **Owner:** DEV
+- **Description:** Extend AudioHandler to create a reusable AudioPlayer with controls (progress bar for scrubbing, play/pause buttons, timer display). Use a DialogFragment for the pop-up UI, including a close button for easy dismissal. Ensure it handles playback for both greetings and recorded calls, with graceful stopping on errors or interruptions.
+- **Acceptance Criteria:**
+  - DialogFragment displays controls and plays audio correctly.
+  - SeekBar allows scrubbing to specific seconds.
+  - Timer shows file length and current position.
+  - Close button dismisses the dialog.
+  - Playback stops gracefully on errors (e.g., file not found) or interruptions.
+  - Run all unit tests to ensure no existing functionality is broken.
+  - If all tests pass, commit changes before proceeding.
+
+### Task 8.2: Unit Tests for AudioPlayer
+- **Owner:** DEV
+- **Description:** Add unit tests for the new AudioPlayer functionality.
+- **Acceptance Criteria:**
+  - Tests cover play, pause, scrubbing, and timer updates.
+  - All tests pass.
+
+## Phase 9: QA - STT, Recording & Playback
 
 ### Task 8.1: Full Interaction Flow Verification
 - [ ] **Owner:** QA (USER)
@@ -420,7 +441,7 @@
     - Recorded messages can be listed and played back in the app.
     - All tests performed on Samsung Galaxy S21 Ultra (Android 14).
 
-## Phase 9: Stability & Polish
+## Phase 10: Stability & Polish
 
 ### Task 9.1: Audio Focus Management
 - [ ] **Owner:** DEV
@@ -457,7 +478,7 @@
 - **Test Scenarios (Unit Tests):**
     - `test_errorToastIsShown()`: Simulate error condition, verify Toast display logic (if possible in unit test, otherwise manual).
 
-## Phase 10: Final MVP Testing
+## Phase 11: Final MVP Testing
 
 ### Task 10.1: Integration & Device Testing
 - [ ] **Owner:** DEV
@@ -468,7 +489,7 @@
     - Run all unit tests to ensure no existing functionality is broken by the changes.
     - If all tests pass, commit any final code tweaks/fixes with a descriptive message.
 
-## Phase 11: QA - Final MVP Acceptance
+## Phase 12: QA - Final MVP Acceptance
 
 ### Task 11.1: End-to-End MVP Flow & Stability
 - [ ] **Owner:** QA (USER)
@@ -478,4 +499,4 @@
     - The app is stable and does not crash during defined test scenarios.
     - Resource management seems appropriate (no excessive battery drain noted during a few test calls).
     - Error handling (Toasts for critical issues) works as expected.
-    - All acceptance criteria outlined in `design.md` (MVP sections) and this plan are met. 
+    - All acceptance criteria outlined in `design.md` (MVP sections) and this plan are met.

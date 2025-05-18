@@ -117,3 +117,4 @@ These scripts clean the project, build the debug APK, and deploy it using ADB.
 - Implemented transcription handling in MessagesActivity for Task 7.5.
 - Fixed getFormattedDate() in Message.java to parse and format timestamps from filenames.
 - Ensured all unit tests pass after manual and automated fixes.
+- Added reusable AudioPlayer with controls (progress bar, play/pause, timer) for greetings and recorded calls in Phase 8 of the plan.

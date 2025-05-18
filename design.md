@@ -40,9 +40,9 @@ The Virtual Call Screening Assistant is an Android application that allows users
 
    * Clearly informs callers that the call is being recorded.
 
-7. **Pre-recorded Message Playback**
+7. **Pre-recorded Message Playback with Controls**
 
-   * Uses `MediaPlayer` to play predefined audio files for fixed responses.
+   * Uses `MediaPlayer` to play predefined audio files for fixed responses, enhanced with a reusable dialog featuring progress bar, play/pause buttons, timer, and a close button for graceful stopping on errors or interruptions.
 
 ---
 
