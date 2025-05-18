@@ -41,10 +41,7 @@ android {
     }
 }
 dependencies {
-    implementation("com.google.code.gson:gson:2.8.8")  // Add Gson for JSON serialization
-}
-
-dependencies {
+    implementation(libs.gson)  // Add Gson for JSON serialization
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.constraintlayout)

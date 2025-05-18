@@ -56,4 +56,14 @@ public class TranscriptionManager {
     public File getAudioFileForTranscription(TranscriptionData transcription) {
         return transcription.getAssociatedAudioFile(storageDir);
     }
+
+    private static TranscriptionManager instance;
+    private static File defaultStorageDir = new File(System.getProperty("java.io.tmpdir"), "vac_transcriptions");
+
+    public static TranscriptionManager getInstance() {
+        if (instance == null) {
+            instance = new TranscriptionManager(defaultStorageDir);
+        }
+        return instance;
+    }
 }

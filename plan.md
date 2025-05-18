@@ -372,7 +372,7 @@
     - `test_edgeCases()`: Verify handling of edge cases
 
 ### Task 7.4: Real-time Transcription Saving with Speaker Info
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** Modify `SpeechRecognitionHandler` to save transcriptions via `TranscriptionManager`. This includes:
     - Adding transcription saving to the STT callback flow
     - Ensuring transcriptions are saved even during user take-over

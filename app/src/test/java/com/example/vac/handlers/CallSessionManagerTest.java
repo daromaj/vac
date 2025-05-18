@@ -1,11 +1,10 @@
 package com.example.vac.handlers;
 
 import android.content.Context;
-import android.os.Looper; // Ensure this is present for ShadowLooper
+// Ensure this is present for ShadowLooper
 import android.speech.SpeechRecognizer; // Import for SpeechRecognizer.ERROR_CLIENT
 import android.telecom.Call;
 import android.net.Uri;
-import android.app.PendingIntent;
 
 import com.example.vac.R; // For R.string.default_greeting
 import com.example.vac.utils.PreferencesManager;
@@ -13,7 +12,6 @@ import com.example.vac.utils.PreferencesManager;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.robolectric.RobolectricTestRunner;
@@ -23,24 +21,19 @@ import org.robolectric.shadows.ShadowLooper; // Import for controlling Handler p
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Locale;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+
 import org.mockito.InOrder;
 import static org.mockito.Mockito.inOrder;
-import static org.junit.Assert.assertNotEquals;
 
 @RunWith(RobolectricTestRunner.class)
 @Config(manifest=Config.NONE, sdk = Config.NEWEST_SDK) // Added SDK for consistency, though might not be strictly needed for these tests
@@ -56,7 +49,7 @@ public class CallSessionManagerTest {
     @Mock private MessageRecorderHandler mockMessageRecorderHandler;
 
     private CallSessionManager callSessionManager;
-    private String defaultGreetingFormatString = "Witaj, dodzwoniłeś się do %1$s. Jestem jego wirtualnym asystentem. Uprzedzam, że rozmowa jest nagrywana. Powiedz proszę w jakiej sprawie dzwonisz a ja postaram Ci się pomóc.";
+    private final String defaultGreetingFormatString = "Witaj, dodzwoniłeś się do %1$s. Jestem jego wirtualnym asystentem. Uprzedzam, że rozmowa jest nagrywana. Powiedz proszę w jakiej sprawie dzwonisz a ja postaram Ci się pomóc.";
     private static final String POLISH_RECORDING_NOTICE = " Ta rozmowa jest nagrywana.";
     private static final String POLISH_RECORDING_KEYPHRASE = "rozmowa jest nagrywana";
     private static final long STT_SILENCE_TIMEOUT_MS_TEST = 3000; // Match constant in SUT
@@ -88,7 +81,7 @@ public class CallSessionManagerTest {
             }
 
             @Override
-            protected SpeechRecognitionHandler createSpeechRecognitionHandler(Context context, SpeechRecognitionHandler.SpeechRecognitionCallbacks callbacks) {
+            protected SpeechRecognitionHandler createSpeechRecognitionHandler(Context context, SpeechRecognitionCallbacks callbacks) {
                 return mockSpeechRecognitionHandler;
             }
 
@@ -440,7 +433,7 @@ public class CallSessionManagerTest {
             }
             
             @Override
-            protected SpeechRecognitionHandler createSpeechRecognitionHandler(Context context, SpeechRecognitionHandler.SpeechRecognitionCallbacks callbacks) {
+            protected SpeechRecognitionHandler createSpeechRecognitionHandler(Context context, SpeechRecognitionCallbacks callbacks) {
                 return mockSpeechRecognitionHandler;
             }
             

@@ -21,7 +21,7 @@ import java.util.Locale;
  */
 public class CallSessionManager implements 
         AudioHandler.AudioHandlerListener,
-        SpeechRecognitionHandler.SpeechRecognitionCallbacks,
+        SpeechRecognitionCallbacks,
         MessageRecorderHandler.MessageRecorderListener {
     
     private static final String TAG = "CallSessionManager";
@@ -82,7 +82,7 @@ public class CallSessionManager implements
         return new AudioHandler(context, listener);
     }
 
-    protected SpeechRecognitionHandler createSpeechRecognitionHandler(Context context, SpeechRecognitionHandler.SpeechRecognitionCallbacks callbacks) {
+    protected SpeechRecognitionHandler createSpeechRecognitionHandler(Context context, SpeechRecognitionCallbacks callbacks) {
         return new SpeechRecognitionHandler(context, callbacks);
     }
 
