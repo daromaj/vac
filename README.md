@@ -77,9 +77,8 @@ The generated APK (`app-debug.apk`) will be located at: `app/build/outputs/apk/d
 2.  Verify connection: `adb devices`
 3.  Install APK:
     ```bash
-    adb install path/to/your/app/build/outputs/apk/debug/app-debug.apk
+    adb install app/build/outputs/apk/debug/app-debug.apk
     ```
-    (If your terminal is in the project root, you can use the relative path: `adb install app/build/outputs/apk/debug/app-debug.apk`)
 
 **Option 2: ADB over Wi-Fi (Android 11+ Recommended Method)**
 
@@ -87,38 +86,34 @@ The generated APK (`app-debug.apk`) will be located at: `app/build/outputs/apk/d
 2.  On your device:
     *   Go to `Settings` -> `Developer options`.
     *   Enable `Wireless debugging`.
-    *   Tap on `Wireless debugging` (the text, not just the toggle).
-    *   Select `Pair device with pairing code`.
-    *   Note the **Wi-Fi pairing code** and the **IP address & port for pairing** displayed on your device.
-3.  On your computer (terminal):
-    *   `adb pair PAIRING_IP:PAIRING_PORT`
-    *   Enter the **Wi-Fi pairing code** when prompted.
-4.  After successful pairing, your device's "Wireless debugging" screen will show an active connection IP address and port (e.g., `YOUR_PHONE_IP:CONNECTION_PORT`).
-5.  On your computer (terminal):
-    *   `adb connect YOUR_PHONE_IP:CONNECTION_PORT`
-6.  Verify connection: `adb devices` (should show your device with its IP).
-7.  Install APK:
+    *   Tap on `Wireless debugging` and pair with your computer.
+3.  On your computer:
+    *   `adb connect YOUR_DEVICE_IP:PORT`
+    *   Install APK:
+        ```bash
+        adb install app/build/outputs/apk/debug/app-debug.apk
+        ```
+
+**Option 3: ADB over Wi-Fi (Older method)**
+
+1.  Connect via USB and run: `adb tcpip 5555`
+2.  Disconnect USB and run: `adb connect YOUR_DEVICE_IP:5555`
+3.  Install APK:
     ```bash
     adb install app/build/outputs/apk/debug/app-debug.apk
     ```
-
-**Option 3: ADB over Wi-Fi (Older method, requires initial USB)**
-1. Connect your device via USB with USB Debugging enabled.
-2. In terminal: `adb tcpip 5555`
-3. Disconnect USB.
-4. Find your phone's IP address (e.g., in Wi-Fi settings).
-5. In terminal: `adb connect YOUR_PHONE_IP:5555`
-6. Verify connection: `adb devices`
-7. Install APK:
-   ```bash
-   adb install app/build/outputs/apk/debug/app-debug.apk
-   ```
 
 ### 4. Automation Scripts
 
 We've added scripts to automate the build and deployment process:
 
-- **build_and_deploy.sh**: For Unix-based systems (e.g., Linux, macOS). Run with `./build_and_deploy.sh`.
+- **build_and_deploy.sh**: For Unix-based systems. Run with `./build_and_deploy.sh`.
 - **build_and_deploy.bat**: For Windows. Run with `build_and_deploy.bat`.
 
-These scripts will clean the project, build the debug APK, and deploy it to a connected device using ADB.
+These scripts clean the project, build the debug APK, and deploy it using ADB.
+
+### Recent Updates
+
+- Implemented transcription handling in MessagesActivity for Task 7.5.
+- Fixed getFormattedDate() in Message.java to parse and format timestamps from filenames.
+- Ensured all unit tests pass after manual and automated fixes.

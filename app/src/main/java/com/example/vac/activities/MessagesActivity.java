@@ -14,6 +14,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.vac.R;
 import com.example.vac.adapters.MessageAdapter;
 import com.example.vac.models.Message;
+import com.example.vac.models.TranscriptionData;
+import com.example.vac.managers.TranscriptionManager;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,6 +34,7 @@ public class MessagesActivity extends AppCompatActivity implements MessageAdapte
     private TextView textViewEmptyMessages;
     private MediaPlayer mediaPlayer;
     private List<Message> messageList = new ArrayList<>();
+    private TranscriptionManager transcriptionManagerInstance;  // Instance for transcription management
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,7 +45,8 @@ public class MessagesActivity extends AppCompatActivity implements MessageAdapte
         textViewEmptyMessages = findViewById(R.id.tv_empty_messages);
 
         recyclerViewMessages.setLayoutManager(new LinearLayoutManager(this));
-        messageAdapter = new MessageAdapter(this, messageList, this);
+        transcriptionManagerInstance = new TranscriptionManager(getFilesDir());  // Initialize here
+        messageAdapter = new MessageAdapter(this, messageList, this);  // Adjusted to match constructor
         recyclerViewMessages.setAdapter(messageAdapter);
 
         loadMessages();
@@ -55,16 +59,21 @@ public class MessagesActivity extends AppCompatActivity implements MessageAdapte
 
         if (files != null) {
             for (File file : files) {
-                messageList.add(new Message(file));
+                try {
+                    List<TranscriptionData> transcriptions = transcriptionManagerInstance.getTranscriptionsForCall(file.getName());
+                    messageList.add(new Message(file, transcriptions));  // Assuming Message constructor is updated
+                } catch (IOException e) {
+                    Log.e(TAG, "Error loading transcriptions: " + e.getMessage());
+                    Toast.makeText(this, "Error loading transcriptions", Toast.LENGTH_SHORT).show();
+                }
             }
-            // Sort messages by date, newest first
             Collections.sort(messageList, (m1, m2) -> {
                 try {
                     long ts1 = Long.parseLong(m1.getFilename().split("_")[1].split("\\.")[0]);
                     long ts2 = Long.parseLong(m2.getFilename().split("_")[1].split("\\.")[0]);
-                    return Long.compare(ts2, ts1); // newest first
+                    return Long.compare(ts2, ts1); // Newest first
                 } catch (Exception e) {
-                    return 0; // fallback if parsing fails
+                    return 0;
                 }
             });
         }
@@ -85,7 +94,6 @@ public class MessagesActivity extends AppCompatActivity implements MessageAdapte
             mediaPlayer.stop();
             mediaPlayer.release();
             mediaPlayer = null;
-            // Consider updating UI to show "Play" again if it was "Pause"
         }
 
         mediaPlayer = new MediaPlayer();
@@ -94,13 +102,10 @@ public class MessagesActivity extends AppCompatActivity implements MessageAdapte
             mediaPlayer.prepare();
             mediaPlayer.start();
             Toast.makeText(this, "Playing: " + message.getFilename(), Toast.LENGTH_SHORT).show();
-            mediaPlayer.setOnCompletionListener(mp -> {
-                releaseMediaPlayer();
-                // Consider updating UI
-            });
+            mediaPlayer.setOnCompletionListener(mp -> releaseMediaPlayer());
         } catch (IOException e) {
             Log.e(TAG, "Error playing message", e);
-            Toast.makeText(this, R.string.error_playing_message, Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Error playing message", Toast.LENGTH_SHORT).show();
             releaseMediaPlayer();
         }
     }
@@ -108,21 +113,17 @@ public class MessagesActivity extends AppCompatActivity implements MessageAdapte
     @Override
     public void onDeleteMessage(Message message) {
         File fileToDelete = message.getFile();
-        if (fileToDelete.exists()) {
-            if (fileToDelete.delete()) {
-                Toast.makeText(this, R.string.message_deleted, Toast.LENGTH_SHORT).show();
-                loadMessages(); // Refresh the list
-            } else {
-                Toast.makeText(this, "Error deleting message", Toast.LENGTH_SHORT).show();
-            }
+        if (fileToDelete.exists() && fileToDelete.delete()) {
+            Toast.makeText(this, "Message deleted", Toast.LENGTH_SHORT).show();
+            loadMessages();
+        } else {
+            Toast.makeText(this, "Error deleting message", Toast.LENGTH_SHORT).show();
         }
     }
 
     private void releaseMediaPlayer() {
         if (mediaPlayer != null) {
-            if (mediaPlayer.isPlaying()) {
-                mediaPlayer.stop();
-            }
+            if (mediaPlayer.isPlaying()) mediaPlayer.stop();
             mediaPlayer.release();
             mediaPlayer = null;
         }
@@ -133,4 +134,4 @@ public class MessagesActivity extends AppCompatActivity implements MessageAdapte
         super.onStop();
         releaseMediaPlayer();
     }
-} 
+}
