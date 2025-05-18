@@ -496,15 +496,16 @@ public class SetupActivity extends AppCompatActivity {
         if (controlsView != null) {
             controlsView.setVisibility(View.VISIBLE);
 
-            Button btnPlayPause = (Button) findViewById(R.id.btn_play_pause);
-            if (btnPlayPause != null) {
-                btnPlayPause.setOnClickListener(v -> {
+            Button btnPlayPauseLocal = (Button) findViewById(R.id.btn_play_pause);  // Use a local variable
+            if (btnPlayPauseLocal != null) {
+                btnPlayPauseLocal.setOnClickListener(v -> {
                     if (audioHandler.isPlaying()) {  // Assuming AudioHandler has isPlaying method
                         audioHandler.pause();
-                        btnPlayPause.setText("Play");
+                        btnPlayPauseLocal.setText("Play");
                     } else {
                         audioHandler.play();
-                        btnPlayPause.setText("Pause");
+                        btnPlayPauseLocal.setText("Pause");
+                        startUpdateHandler(btnPlayPauseLocal);  // Pass the button
                     }
                 });
             }
@@ -527,7 +528,6 @@ public class SetupActivity extends AppCompatActivity {
                     public void onStopTrackingTouch(SeekBar seekBar) {
                     }
                 });
-                // Set up seekbar max and progress if possible
                 if (audioHandler != null) {
                     seekBar.setMax(audioHandler.getDuration());  // Assuming getDuration method
                 }
@@ -535,24 +535,43 @@ public class SetupActivity extends AppCompatActivity {
 
             TextView timerTextView = (TextView) findViewById(R.id.timer_text_view);
             if (timerTextView != null && audioHandler != null) {
-                timerTextView.setText(formatTime(audioHandler.getCurrentPosition()) + " / " + formatTime(audioHandler.getDuration()));
-                new Handler().postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (audioHandler != null && audioHandler.isPlaying() && timerTextView != null) {
-                            int currentPosition = audioHandler.getCurrentPosition();
-                            if (seekBar != null) {
-                                seekBar.setProgress(currentPosition);
-                            }
-                            timerTextView.setText(formatTime(currentPosition) + " / " + formatTime(audioHandler.getDuration()));
-                            new Handler().postDelayed(this, 1000);
-                        }
-                    }
-                }, 1000);
+                updateUI();  // Initial update
+                if (btnPlayPauseLocal != null) {
+                    startUpdateHandler(btnPlayPauseLocal);
+                }
             }
         } else {
             Log.e(TAG, "Playback controls layout not found in SetupActivity.");
             Toast.makeText(this, "Playback controls not available.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private Handler handler = new Handler();
+
+    private void startUpdateHandler(Button btnPlayPause) {
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                if (audioHandler != null && audioHandler.isPlaying()) {
+                    updateUI();
+                    handler.postDelayed(this, 1000);  // Reschedule
+                } else if (btnPlayPause != null) {
+                    btnPlayPause.setText("Play");  // Reset button text
+                }
+            }
+        };
+        handler.removeCallbacks(runnable);
+        handler.postDelayed(runnable, 0);  // Start immediately
+    }
+
+    private void updateUI() {
+        TextView timerTextView = findViewById(R.id.timer_text_view);
+        SeekBar seekBar = findViewById(R.id.seek_bar);
+        if (timerTextView != null && audioHandler != null) {
+            timerTextView.setText(formatTime(audioHandler.getCurrentPosition()) + " / " + formatTime(audioHandler.getDuration()));
+            if (seekBar != null) {
+                seekBar.setProgress(audioHandler.getCurrentPosition());
+            }
         }
     }
 
