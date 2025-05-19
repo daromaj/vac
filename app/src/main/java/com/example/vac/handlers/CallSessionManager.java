@@ -325,7 +325,12 @@ public class CallSessionManager implements
         }
         stopScreening(); // Stop the session on playback error
     }
-    
+
+    @Override
+    public void onTimerUpdate(int currentPosition, int duration) {
+
+    }
+
     // SpeechRecognitionCallbacks implementation
     
     @Override

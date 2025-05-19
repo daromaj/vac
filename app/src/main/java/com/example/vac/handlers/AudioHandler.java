@@ -464,6 +464,7 @@ public class AudioHandler {
         void onPlaybackStarted();
         void onPlaybackCompleted();
         void onPlaybackError(String errorMessage);
+        void onTimerUpdate(int currentPosition, int duration);  // Added for timer updates in tests
     }
 
     /**

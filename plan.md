@@ -410,7 +410,7 @@
 ## Phase 8: Implement Reusable AudioPlayer with Controls
 
 ### Task 8.1: Enhance Audio Playback Component
-- [ ] **Owner:** DEV
+- [x] **Owner:** DEV
 - **Description:** Extend AudioHandler to create a reusable AudioPlayer with controls (progress bar for scrubbing, play/pause buttons, timer display). Use a DialogFragment for the pop-up UI, including a close button for easy dismissal. Ensure it handles playback for both greetings and recorded calls, with graceful stopping on errors or interruptions.
 - **Acceptance Criteria:**
   - DialogFragment displays controls and plays audio correctly.
@@ -420,10 +420,6 @@
   - Playback stops gracefully on errors (e.g., file not found) or interruptions.
   - Run all unit tests to ensure no existing functionality is broken.
   - If all tests pass, commit changes before proceeding.
-
-#### User reported issues
-When user plays the file multiple times the progress bar and timer - they stop working. The labels on PLAY/PAUSE button also stop showing correctly. When playback finishes the label doesn't change back to PLAY from PAUSE
-
 
 ### Task 8.2: Unit Tests for AudioPlayer
 - [ ] **Owner:** DEV
